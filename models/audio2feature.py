@@ -2,7 +2,6 @@ import torch.nn as nn
 from .networks import WaveNet
 
 
-
 class Audio2Feature(nn.Module):
     def __init__(self, opt):
         super(Audio2Feature, self).__init__()
