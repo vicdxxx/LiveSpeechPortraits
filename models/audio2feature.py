@@ -30,11 +30,11 @@ class Audio2Feature(nn.Module):
             self.item_length = self.WaveNet.receptive_field + opt.time_frame_length - 1
         elif opt.feature_decoder == 'LSTM':
             self.downsample = nn.Sequential(
-                    nn.Linear(in_features=opt.APC_hidden_size * 2, out_features=opt.APC_hidden_size),
-                    nn.BatchNorm1d(opt.APC_hidden_size),
-                    nn.LeakyReLU(0.2),
-                    nn.Linear(opt.APC_hidden_size, opt.APC_hidden_size),
-                    )
+                nn.Linear(in_features=opt.APC_hidden_size * 2, out_features=opt.APC_hidden_size),
+                nn.BatchNorm1d(opt.APC_hidden_size),
+                nn.LeakyReLU(0.2),
+                nn.Linear(opt.APC_hidden_size, opt.APC_hidden_size),
+            )
             self.LSTM = nn.LSTM(input_size=opt.APC_hidden_size,
                                 hidden_size=256,
                                 num_layers=3,
@@ -42,22 +42,21 @@ class Audio2Feature(nn.Module):
                                 bidirectional=False,
                                 batch_first=True)
             self.fc = nn.Sequential(
-                    nn.Linear(in_features=256, out_features=512),
-                    nn.BatchNorm1d(512),
-                    nn.LeakyReLU(0.2),
-                    nn.Linear(512, 512),
-                    nn.BatchNorm1d(512),
-                    nn.LeakyReLU(0.2),
-                    nn.Linear(512, output_size))
-                    
-    
+                nn.Linear(in_features=256, out_features=512),
+                nn.BatchNorm1d(512),
+                nn.LeakyReLU(0.2),
+                nn.Linear(512, 512),
+                nn.BatchNorm1d(512),
+                nn.LeakyReLU(0.2),
+                nn.Linear(512, output_size))
+
     def forward(self, audio_features):
         '''
         Args:
             audio_features: [b, T, ndim]
         '''
         if self.opt.feature_decoder == 'WaveNet':
-            pred = self.WaveNet.forward(audio_features.permute(0,2,1)) 
+            pred = self.WaveNet.forward(audio_features.permute(0, 2, 1))
         elif self.opt.feature_decoder == 'LSTM':
             bs, item_len, ndim = audio_features.shape
             # new in 0324
@@ -66,18 +65,6 @@ class Audio2Feature(nn.Module):
             output, (hn, cn) = self.LSTM(down_audio_feats)
 #            output, (hn, cn) = self.LSTM(audio_features)
             pred = self.fc(output.reshape(-1, 256)).reshape(bs, int(item_len/2), -1)
-#            pred = self.fc(output.reshape(-1, 256)).reshape(bs, item_len, -1)[:, -self.opt.time_frame_length:, :] 
-        
+#            pred = self.fc(output.reshape(-1, 256)).reshape(bs, item_len, -1)[:, -self.opt.time_frame_length:, :]
+
         return pred
-
-
-
-
-
-
-
-
-
-
-
-

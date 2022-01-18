@@ -1,3 +1,4 @@
+from torchvision import models
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -13,26 +14,26 @@ class GMMLogLoss(nn.Module):
         sigma_bias:
         sigma_min:  current we do not use it.
     '''
+
     def __init__(self, ncenter, ndim, sigma_min=0.03):
-        super(GMMLogLoss,self).__init__()
+        super(GMMLogLoss, self).__init__()
         self.ncenter = ncenter
         self.ndim = ndim
-        self.sigma_min = sigma_min       
-    
-    
+        self.sigma_min = sigma_min
+
     def forward(self, output, target):
         '''
         Args:
             output: [b, T, ncenter + ncenter * ndim * 2]:
-                [:, :,  : ncenter] shows each gaussian probability 
-                [:, :, ncenter : ncenter + ndim * ncenter] shows the average values of each dimension of each gaussian 
-                [: ,:, ncenter + ndim * ncenter : ncenter + ndim * 2 * ncenter] show the negative log sigma of each dimension of each gaussian 
-            target: [b, T, ndim], the ground truth target landmark data is shown here 
-        To maximize the log-likelihood equals to minimize the negative log-likelihood. 
-        NOTE: It is unstable to directly compute the log results of sigma, e.g. ln(-0.1) as we need to clip the sigma results 
+                [:, :,  : ncenter] shows each gaussian probability
+                [:, :, ncenter : ncenter + ndim * ncenter] shows the average values of each dimension of each gaussian
+                [: ,:, ncenter + ndim * ncenter : ncenter + ndim * 2 * ncenter] show the negative log sigma of each dimension of each gaussian
+            target: [b, T, ndim], the ground truth target landmark data is shown here
+        To maximize the log-likelihood equals to minimize the negative log-likelihood.
+        NOTE: It is unstable to directly compute the log results of sigma, e.g. ln(-0.1) as we need to clip the sigma results
         into positive. Hence here we predict the negative log sigma results to avoid numerical instablility, which mean:
             `` sigma = 1/exp(predict), predict = -ln(sigma) ``
-        Also, it will be just the 'B' term below! 
+        Also, it will be just the 'B' term below!
         Currently we only implement single gaussian distribution, hence the first values of pred are meaningless.
         For single gaussian distribution:
             L(mu, sigma) = -n/2 * ln(2pi * sigma^2) - 1 / (2 x sigma^2) * sum^n (x_i - mu)^2  (n for prediction times, n=1 for one frame, x_i for gt)
@@ -44,14 +45,14 @@ class GMMLogLoss(nn.Module):
         '''
         b, T, _ = target.shape
         # read prediction paras
-        mus = output[:, :, self.ncenter : (self.ncenter + self.ncenter * self.ndim)].view(b, T, self.ncenter, self.ndim)  # [b, T, ncenter, ndim]
-        
+        mus = output[:, :, self.ncenter: (self.ncenter + self.ncenter * self.ndim)].view(b, T, self.ncenter, self.ndim)  # [b, T, ncenter, ndim]
+
         # apply min sigma
-        neg_log_sigmas_out = output[:, :, (self.ncenter + self.ncenter * self.ndim):].view(b, T, self.ncenter, self.ndim)  # [b, T, ncenter, ndim]   
+        neg_log_sigmas_out = output[:, :, (self.ncenter + self.ncenter * self.ndim):].view(b, T, self.ncenter, self.ndim)  # [b, T, ncenter, ndim]
         inv_sigmas_min = torch.ones(neg_log_sigmas_out.size()).cuda() * (1. / self.sigma_min)
         inv_sigmas_min_log = torch.log(inv_sigmas_min)
-        neg_log_sigmas = torch.min(neg_log_sigmas_out, inv_sigmas_min_log)       
-        
+        neg_log_sigmas = torch.min(neg_log_sigmas_out, inv_sigmas_min_log)
+
         inv_sigmas = torch.exp(neg_log_sigmas)
         # replicate the target of ncenter to minus mu
         target_rep = target.unsqueeze(2).expand(b, T, self.ncenter, self.ndim)  # [b, T, ncenter, ndim]
@@ -60,18 +61,18 @@ class GMMLogLoss(nn.Module):
         A = 0.5 * math.log(2 * math.pi)   # 0.9189385332046727
         B = neg_log_sigmas  # [b, T, ncenter, ndim]
         C = 0.5 * (MU_DIFF * inv_sigmas)**2  # [b, T, ncenter, ndim]
-        negative_loglikelihood =  A - B + C  # [b, T, ncenter, ndim]
-        
+        negative_loglikelihood = A - B + C  # [b, T, ncenter, ndim]
+
         return negative_loglikelihood.mean()
 
 
-def Sample_GMM(gmm_params, ncenter, ndim, weight_smooth = 0.0, sigma_scale = 0.0):
+def Sample_GMM(gmm_params, ncenter, ndim, weight_smooth=0.0, sigma_scale=0.0):
     ''' Sample values from a given a GMM distribution.
     Args:
-        gmm_params: [b, target_length, (2 * ndim + 1) * ncenter], including the 
+        gmm_params: [b, target_length, (2 * ndim + 1) * ncenter], including the
         distribution weights, average and sigma
         ncenter: numbers of gaussian distribution
-        ndim: dimension of each gaussian distribution 
+        ndim: dimension of each gaussian distribution
         weight_smooth: float, smooth the gaussian distribution weights
         sigma_scale: float, adjust the gaussian scale, larger for sharper prediction,
             0 for zero sigma which always return average values
@@ -85,12 +86,12 @@ def Sample_GMM(gmm_params, ncenter, ndim, weight_smooth = 0.0, sigma_scale = 0.0
     prob = nn.functional.softmax(gmm_params_cpu[:, : ncenter] * (1 + weight_smooth), dim=1)
     # select the gaussian distribution according to their weights
     selected_idx = torch.multinomial(prob, num_samples=1, replacement=True)
-    
-    mu = gmm_params_cpu[:, ncenter : ncenter + ncenter * ndim]
+
+    mu = gmm_params_cpu[:, ncenter: ncenter + ncenter * ndim]
     # please note that we use -logsigma as output, hence here we need to take the negative
     sigma = torch.exp(-gmm_params_cpu[:, ncenter + ncenter * ndim:]) * sigma_scale
 #    print('sigma average:', sigma.mean())
-    
+
     selected_sigma = torch.empty(b*T, ndim).float()
     selected_mu = torch.empty(b*T, ndim).float()
     current_sample = torch.randn(b*T, ndim).float()
@@ -105,9 +106,7 @@ def Sample_GMM(gmm_params, ncenter, ndim, weight_smooth = 0.0, sigma_scale = 0.0
     current_sample = current_sample * selected_sigma + selected_mu
     # cur_sample = sel_mu
 #    return  current_sample.unsqueeze(1).cuda()
-    return  current_sample.reshape(b, T, -1).cuda()
-
-
+    return current_sample.reshape(b, T, -1).cuda()
 
 
 class GANLoss(nn.Module):
@@ -118,25 +117,23 @@ class GANLoss(nn.Module):
         self.fake_label = target_fake_label
         self.real_label_var = None
         self.fake_label_var = None
-        self.Tensor = tensor        
+        self.Tensor = tensor
         if use_lsgan:
             self.loss = nn.MSELoss()
         else:
             self.loss = nn.BCELoss()
 
     def get_target_tensor(self, input, target_is_real):
-        target_tensor = None        
+        target_tensor = None
         gpu_id = input.get_device()
         if target_is_real:
-            create_label = ((self.real_label_var is None) or
-                            (self.real_label_var.numel() != input.numel()))
+            create_label = ((self.real_label_var is None) or (self.real_label_var.numel() != input.numel()))
             if create_label:
                 real_tensor = self.Tensor(input.size()).cuda(gpu_id).fill_(self.real_label)
                 self.real_label_var = Variable(real_tensor, requires_grad=False)
             target_tensor = self.real_label_var
         else:
-            create_label = ((self.fake_label_var is None) or
-                            (self.fake_label_var.numel() != input.numel()))
+            create_label = ((self.fake_label_var is None) or (self.fake_label_var.numel() != input.numel()))
             if create_label:
                 fake_tensor = self.Tensor(input.size()).cuda(gpu_id).fill_(self.fake_label)
                 self.fake_label_var = Variable(fake_tensor, requires_grad=False)
@@ -148,14 +145,12 @@ class GANLoss(nn.Module):
             loss = 0
             for input_i in input:
                 pred = input_i[-1]
-                target_tensor = self.get_target_tensor(pred, target_is_real)                
+                target_tensor = self.get_target_tensor(pred, target_is_real)
                 loss += self.loss(pred, target_tensor)
             return loss
-        else:            
+        else:
             target_tensor = self.get_target_tensor(input[-1], target_is_real)
             return self.loss(input[-1], target_tensor)
-
-
 
 
 class VGGLoss(nn.Module):
@@ -182,10 +177,8 @@ class VGGLoss(nn.Module):
             # return both perceptual loss and style loss.
             style_loss = 0
             for i in range(len(x_vgg)):
-                this_loss = (self.weights[i] *
-                             self.criterion(x_vgg[i], y_vgg[i].detach()))
-                this_style_loss = (self.style_weights[i] *
-                                   self.style_criterion(x_vgg[i], y_vgg[i].detach()))
+                this_loss = (self.weights[i] * self.criterion(x_vgg[i], y_vgg[i].detach()))
+                this_style_loss = (self.style_weights[i] * self.style_criterion(x_vgg[i], y_vgg[i].detach()))
                 loss += this_loss
                 style_loss += this_style_loss
             return loss, style_loss
@@ -194,7 +187,7 @@ class VGGLoss(nn.Module):
             this_loss = (self.weights[i] * self.criterion(x_vgg[i], y_vgg[i].detach()))
             loss += this_loss
         return loss
-    
+
 
 def gram_matrix(input):
     a, b, c, d = input.size()  # a=batch size(=1)
@@ -216,21 +209,18 @@ class StyleLoss(nn.Module):
         Gy = gram_matrix(y)
         return F.mse_loss(Gx, Gy) * 30000000
 
-        
 
 class MaskedL1Loss(nn.Module):
     def __init__(self):
         super(MaskedL1Loss, self).__init__()
         self.criterion = nn.L1Loss()
 
-    def forward(self, input, target, mask):        
+    def forward(self, input, target, mask):
         mask = mask.expand(-1, input.size()[1], -1, -1)
         loss = self.criterion(input * mask, target * mask)
         return loss
 
 
-
-from torchvision import models
 class Vgg19(nn.Module):
     def __init__(self, requires_grad=False):
         super(Vgg19, self).__init__()
@@ -256,20 +246,9 @@ class Vgg19(nn.Module):
 
     def forward(self, X):
         h_relu1 = self.slice1(X)
-        h_relu2 = self.slice2(h_relu1)        
-        h_relu3 = self.slice3(h_relu2)        
-        h_relu4 = self.slice4(h_relu3)        
-        h_relu5 = self.slice5(h_relu4)                
+        h_relu2 = self.slice2(h_relu1)
+        h_relu3 = self.slice3(h_relu2)
+        h_relu4 = self.slice4(h_relu3)
+        h_relu5 = self.slice5(h_relu4)
         out = [h_relu1, h_relu2, h_relu3, h_relu4, h_relu5]
         return out
-
-
-
-
-
-
-
-
-
-
-

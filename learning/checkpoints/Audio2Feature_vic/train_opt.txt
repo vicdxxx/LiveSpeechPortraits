@@ -1,0 +1,64 @@
+----------------- Options ---------------
+             A2L_GMM_ndim: 75                            
+        APC_frame_history: 0                             
+          APC_hidden_size: 512                           
+             APC_residual: False                         
+           APC_rnn_layers: 3                             
+                      FPS: 60                            	[default: 60]
+             LSTM_dropout: 0                             
+         LSTM_hidden_size: 256                           
+              LSTM_layers: 3                             
+         LSTM_output_size: 80                            
+            LSTM_residual: False                         
+     LSTM_sequence_length: 60                            
+           audioRF_future: 0                             
+          audioRF_history: 60                            
+            audio_encoder: APC                           
+               batch_size: 32                            
+          checkpoints_dir: ./checkpoints/                
+           continue_train: False                         
+                 dataroot: ../data                       	[default: default_path]
+             dataset_mode: audiovisual                   
+            dataset_names: common_voice                  	[default: default_name]
+              epoch_count: 0                             
+          feature_decoder: LSTM                          
+            feature_dtype: pts3d                         
+             frame_future: 18                            
+        frame_jump_stride: 4                             
+                    gamma: 0.2                           
+           gaussian_noise: 1                             
+     gaussian_noise_scale: 0.01                          
+                  gpu_ids: 0                             
+                  isTrain: True                          	[default: None]
+               ispts_norm: 1                             
+               load_epoch: 200                           
+                     loss: L2                            
+       loss_smooth_weight: 0.0                           
+                       lr: 0.0001                        
+           lr_decay_iters: 250                           
+                 lr_final: 1e-05                         
+                lr_policy: linear                        	[default: step]
+         max_dataset_size: inf                           
+                    model: audio2feature                 
+                 n_epochs: 200                           	[default: 500]
+           n_epochs_decay: 200                           	[default: 250]
+                     name: Audio2Feature_vic             	[default: Audio2Feature]
+              num_threads: 0                             
+               only_mouth: 1                             
+                optimizer: Adam                          	[default: AdamW]
+                    phase: train                         
+           predict_length: 1                             
+             re_transform: 0                             
+              sample_rate: 16000                         
+             save_by_iter: True                          	[default: False]
+          save_epoch_freq: 5                             
+          sequence_length: 240                           
+           serial_batches: True                          	[default: False]
+                   suffix: vic                           	[default: ]
+                     task: Audio2Feature                 
+      train_dataset_names: train_list.txt                
+            use_delta_pts: 1                             
+   validate_dataset_names: val_list.txt                  
+           validate_epoch: 10                            	[default: 50]
+                  verbose: True                          	[default: False]
+----------------- End -------------------

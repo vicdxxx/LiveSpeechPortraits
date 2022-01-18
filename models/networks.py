@@ -12,7 +12,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
 
 
-
 ###############################################################################
 # The detailed network architecture implementation for each model
 ###############################################################################
@@ -30,10 +29,10 @@ class APC_encoder(nn.Module):
         in_sizes = ([input_size] + [hidden_size] * (num_layers - 1))
         out_sizes = [hidden_size] * num_layers
         self.rnns = nn.ModuleList(
-                [nn.GRU(input_size=in_size, hidden_size=out_size, batch_first=True) for (in_size, out_size) in zip(in_sizes, out_sizes)])
+            [nn.GRU(input_size=in_size, hidden_size=out_size, batch_first=True) for (in_size, out_size) in zip(in_sizes, out_sizes)])
 
         self.rnn_residual = residual
-    
+
     def forward(self, inputs, lengths):
         '''
         input:
@@ -48,27 +47,24 @@ class APC_encoder(nn.Module):
         with torch.no_grad():
             seq_len = inputs.size(1)
             packed_rnn_inputs = pack_padded_sequence(inputs, lengths, True)
-        
+
             for i, layer in enumerate(self.rnns):
                 packed_rnn_outputs, _ = layer(packed_rnn_inputs)
-                
+
                 rnn_outputs, _ = pad_packed_sequence(
-                        packed_rnn_outputs, True, total_length=seq_len)
+                    packed_rnn_outputs, True, total_length=seq_len)
                 # outputs: (batch_size, seq_len, rnn_hidden_size)
-                
+
                 if i + 1 < len(self.rnns):
                     rnn_inputs, _ = pad_packed_sequence(
-                            packed_rnn_inputs, True, total_length=seq_len)
+                        packed_rnn_inputs, True, total_length=seq_len)
                     # rnn_inputs: (batch_size, seq_len, rnn_hidden_size)
                     if self.rnn_residual and rnn_inputs.size(-1) == rnn_outputs.size(-1):
                         # Residual connections
                         rnn_outputs = rnn_outputs + rnn_inputs
                     packed_rnn_inputs = pack_padded_sequence(rnn_outputs, lengths, True)
-        
-        
+
         return rnn_outputs
-
-
 
 
 class WaveNet(nn.Module):
@@ -90,24 +86,25 @@ class WaveNet(nn.Module):
             cond_channels: channel number of condition information
         `` loss(str): GMM loss is adopted. ``
     '''
+
     def __init__(self,
-                 residual_layers = 10,
-                 residual_blocks = 3,
-                 dilation_channels = 32,
-                 residual_channels = 32,
-                 skip_channels = 256,
-                 kernel_size = 2,
-                 output_length = 16,
-                 use_bias = False,
-                 cond = True,
-                 input_channels = 128,
-                 ncenter = 1,
-                 ndim = 73*2,
-                 output_channels = 73*3,
-                 cond_channels = 256,
-                 activation = 'leakyrelu'):
+                 residual_layers=10,
+                 residual_blocks=3,
+                 dilation_channels=32,
+                 residual_channels=32,
+                 skip_channels=256,
+                 kernel_size=2,
+                 output_length=16,
+                 use_bias=False,
+                 cond=True,
+                 input_channels=128,
+                 ncenter=1,
+                 ndim=73*2,
+                 output_channels=73*3,
+                 cond_channels=256,
+                 activation='leakyrelu'):
         super(WaveNet, self).__init__()
-        
+
         self.layers = residual_layers
         self.blocks = residual_blocks
         self.dilation_channels = dilation_channels
@@ -123,13 +120,13 @@ class WaveNet(nn.Module):
         self.bias = use_bias
         self.cond = cond
         self.cond_channels = cond_channels
-        
+
         # build modules
         self.dilations = []
         self.dilation_queues = []
         residual_blocks = []
         self.receptive_field = 1
-        
+
         # 1x1 convolution to create channels
         self.start_conv1 = nn.Conv1d(in_channels=self.input_channels,
                                      out_channels=self.residual_channels,
@@ -140,49 +137,47 @@ class WaveNet(nn.Module):
                                      kernel_size=1,
                                      bias=True)
         if activation == 'relu':
-            self.activation = nn.ReLU(inplace = True)
+            self.activation = nn.ReLU(inplace=True)
         elif activation == 'leakyrelu':
             self.activation = nn.LeakyReLU(0.2)
         self.drop_out2D = nn.Dropout2d(p=0.5)
-        
-        
+
         # build residual blocks
         for b in range(self.blocks):
             new_dilation = 1
             additional_scope = kernel_size - 1
             for i in range(self.layers):
                 # create current residual block
-                residual_blocks.append(residual_block(dilation = new_dilation,
-                                                      dilation_channels = self.dilation_channels,
-                                                      residual_channels = self.residual_channels,
-                                                      skip_channels = self.skip_channels,
-                                                      kernel_size = self.kernel_size,
-                                                      use_bias = self.bias,
-                                                      cond = self.cond,
-                                                      cond_channels = self.cond_channels))
+                residual_blocks.append(residual_block(dilation=new_dilation,
+                                                      dilation_channels=self.dilation_channels,
+                                                      residual_channels=self.residual_channels,
+                                                      skip_channels=self.skip_channels,
+                                                      kernel_size=self.kernel_size,
+                                                      use_bias=self.bias,
+                                                      cond=self.cond,
+                                                      cond_channels=self.cond_channels))
                 new_dilation *= 2
-                
+
                 self.receptive_field += additional_scope
                 additional_scope *= 2
-        
+
         self.residual_blocks = nn.ModuleList(residual_blocks)
         # end convolutions
-        
-        self.end_conv_1 = nn.Conv1d(in_channels = self.skip_channels,
-                                    out_channels = self.output_channels,
-                                    kernel_size = 1,
-                                    bias = True)
-        self.end_conv_2 = nn.Conv1d(in_channels = self.output_channels,
-                                    out_channels = self.output_channels,
-                                    kernel_size = 1,
-                                    bias = True)
-        
-    
+
+        self.end_conv_1 = nn.Conv1d(in_channels=self.skip_channels,
+                                    out_channels=self.output_channels,
+                                    kernel_size=1,
+                                    bias=True)
+        self.end_conv_2 = nn.Conv1d(in_channels=self.output_channels,
+                                    out_channels=self.output_channels,
+                                    kernel_size=1,
+                                    bias=True)
+
     def parameter_count(self):
         par = list(self.parameters())
         s = sum([np.prod(list(d.size())) for d in par])
         return s
-    
+
     def forward(self, input, cond=None):
         '''
         Args:
@@ -193,7 +188,7 @@ class WaveNet(nn.Module):
         '''
         # dropout
         x = self.drop_out2D(input)
-        
+
         # preprocess
         x = self.activation(self.start_conv1(x))
         x = self.activation(self.start_conv2(x))
@@ -202,52 +197,52 @@ class WaveNet(nn.Module):
         for i, dilation_block in enumerate(self.residual_blocks):
             x, current_skip = self.residual_blocks[i](x, cond)
             skip += current_skip
-        
+
         # postprocess
         res = self.end_conv_1(self.activation(skip))
         res = self.end_conv_2(self.activation(res))
-        
+
         # cut the output size
         res = res[:, :, -self.output_length:]  # [b, ndim, T]
         res = res.transpose(1, 2)  # [b, T, ndim]
-        
+
         return res
-    
-    
-    
+
+
 class residual_block(nn.Module):
     '''
     This is the implementation of a residual block in wavenet model. Every
-    residual block takes previous block's output as input. The forward pass of 
+    residual block takes previous block's output as input. The forward pass of
     each residual block can be illusatrated as below:
-        
+
     ######################### Current Residual Block ##########################
     #     |-----------------------*residual*--------------------|             #
-    #     |                                                     |             # 
+    #     |                                                     |             #
     #     |        |-- dilated conv -- tanh --|                 |             #
     # -> -|-- pad--|                          * ---- |-- 1x1 -- + --> *input* #
     #              |-- dilated conv -- sigm --|      |                        #
-    #                                               1x1                       # 
-    #                                                |                        # 
+    #                                               1x1                       #
+    #                                                |                        #
     # ---------------------------------------------> + -------------> *skip*  #
     ###########################################################################
     As shown above, each residual block returns two value: 'input' and 'skip':
         'input' is indeed this block's output and also is the next block's input.
         'skip' is the skip data which will be added finally to compute the prediction.
     The input args own the same meaning in the WaveNet class.
-    
+
     '''
+
     def __init__(self,
                  dilation,
-                 dilation_channels = 32,
-                 residual_channels = 32,
-                 skip_channels = 256,
-                 kernel_size = 2,
-                 use_bias = False,
-                 cond = True,
-                 cond_channels = 128):
+                 dilation_channels=32,
+                 residual_channels=32,
+                 skip_channels=256,
+                 kernel_size=2,
+                 use_bias=False,
+                 cond=True,
+                 cond_channels=128):
         super(residual_block, self).__init__()
-        
+
         self.dilation = dilation
         self.dilation_channels = dilation_channels
         self.residual_channels = residual_channels
@@ -258,90 +253,85 @@ class residual_block(nn.Module):
         self.cond_channels = cond_channels
         # zero padding to the left of the sequence.
         self.padding = (int((self.kernel_size - 1) * self.dilation), 0)
-        
+
         # dilated convolutions
-        self.filter_conv= nn.Conv1d(in_channels = self.residual_channels,
-                                    out_channels = self.dilation_channels,
-                                    kernel_size = self.kernel_size,
-                                    dilation = self.dilation,
-                                    bias = self.bias)
-                
-        self.gate_conv = nn.Conv1d(in_channels = self.residual_channels,
-                                   out_channels = self.dilation_channels,
-                                   kernel_size = self.kernel_size,
-                                   dilation = self.dilation,
-                                   bias = self.bias)
-                
+        self.filter_conv = nn.Conv1d(in_channels=self.residual_channels,
+                                     out_channels=self.dilation_channels,
+                                     kernel_size=self.kernel_size,
+                                     dilation=self.dilation,
+                                     bias=self.bias)
+
+        self.gate_conv = nn.Conv1d(in_channels=self.residual_channels,
+                                   out_channels=self.dilation_channels,
+                                   kernel_size=self.kernel_size,
+                                   dilation=self.dilation,
+                                   bias=self.bias)
+
         # 1x1 convolution for residual connections
-        self.residual_conv = nn.Conv1d(in_channels = self.dilation_channels,
-                                       out_channels = self.residual_channels,
-                                       kernel_size = 1,
-                                       bias = self.bias)
-                
+        self.residual_conv = nn.Conv1d(in_channels=self.dilation_channels,
+                                       out_channels=self.residual_channels,
+                                       kernel_size=1,
+                                       bias=self.bias)
+
         # 1x1 convolution for skip connections
-        self.skip_conv = nn.Conv1d(in_channels = self.dilation_channels,
-                                   out_channels = self.skip_channels,
-                                   kernel_size = 1,
-                                   bias = self.bias)
-        
+        self.skip_conv = nn.Conv1d(in_channels=self.dilation_channels,
+                                   out_channels=self.skip_channels,
+                                   kernel_size=1,
+                                   bias=self.bias)
+
         # condition conv, no dilation
-        if self.cond == True:
-            self.cond_filter_conv = nn.Conv1d(in_channels = self.cond_channels,
-                                    out_channels = self.dilation_channels,
-                                    kernel_size = 1,
-                                    bias = True)
-            self.cond_gate_conv = nn.Conv1d(in_channels = self.cond_channels,
-                                   out_channels = self.dilation_channels,
-                                   kernel_size = 1,
-                                   bias = True)
-        
-    
+        if self.cond is True:
+            self.cond_filter_conv = nn.Conv1d(in_channels=self.cond_channels,
+                                              out_channels=self.dilation_channels,
+                                              kernel_size=1,
+                                              bias=True)
+            self.cond_gate_conv = nn.Conv1d(in_channels=self.cond_channels,
+                                            out_channels=self.dilation_channels,
+                                            kernel_size=1,
+                                            bias=True)
+
     def forward(self, input, cond=None):
         if self.cond is True and cond is None:
             raise RuntimeError("set using condition to true, but no cond tensor inputed")
-            
+
         x_pad = F.pad(input, self.padding)
         # filter
         filter = self.filter_conv(x_pad)
         # gate
         gate = self.gate_conv(x_pad)
-        
-        if self.cond == True and cond is not None:
+
+        if self.cond is True and cond is not None:
             filter_cond = self.cond_filter_conv(cond)
             gate_cond = self.cond_gate_conv(cond)
             # add cond results
             filter = filter + filter_cond
             gate = gate + gate_cond
-                       
+
         # element-wise multiple
         filter = torch.tanh(filter)
         gate = torch.sigmoid(gate)
         x = filter * gate
-        
+
         # residual and skip
         residual = self.residual_conv(x) + input
         skip = self.skip_conv(x)
-               
-        
+
         return residual, skip
 
 
-
-
-## 2D convolution layers
+# 2D convolution layers
 def conv2d(batch_norm, in_planes, out_planes, kernel_size=3, stride=1):
     if batch_norm:
         return nn.Sequential(
             nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size, stride=stride, padding=(kernel_size-1)//2, bias=True),
             nn.BatchNorm2d(out_planes),
             nn.LeakyReLU(0.2, inplace=True)
-            )
+        )
     else:
         return nn.Sequential(
             nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size, stride=stride, padding=(kernel_size-1)//2, bias=True),
             nn.LeakyReLU(0.2, inplace=True)
-            )
-    
+        )
 
 
 def init_weights(net, init_type='normal', init_gain=0.02):
@@ -376,7 +366,6 @@ def init_weights(net, init_type='normal', init_gain=0.02):
 
     print('initialize network with %s' % init_type)
     net.apply(init_func)  # apply the initialization function <init_func>
-
 
 
 def init_net(net, init_type='normal', init_gain=0.02, gpu_ids=[], useDDP=False):
@@ -417,7 +406,9 @@ def get_scheduler(optimizer, opt):
     """
     if opt.lr_policy == 'linear':
         def lambda_rule(epoch):
-            lr_l = 1.0 - max(0, epoch - opt.n_epochs) / float(opt.n_epochs_decay + 1)
+            #lr_l = 1.0 - max(0, epoch - opt.n_epochs) / float(opt.n_epochs_decay + 1)
+            min_scale = opt.lr_final / opt.lr
+            lr_l = np.clip((opt.n_epochs - epoch) / float(opt.n_epochs_decay + 1), 0, 1.0 - min_scale) + min_scale
             return lr_l
         scheduler = lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda_rule, last_epoch=opt.epoch_count-2)
     elif opt.lr_policy == 'step':
@@ -432,11 +423,10 @@ def get_scheduler(optimizer, opt):
         return NotImplementedError('learning rate policy [%s] is not implemented', opt.lr_policy)
     return scheduler
 
-    
 
 def weights_init(m):
     classname = m.__class__.__name__
-    if classname.find('Conv') != -1 and hasattr(m, 'weight'):        
+    if classname.find('Conv') != -1 and hasattr(m, 'weight'):
         m.weight.data.normal_(0.0, 0.02)
     elif classname.find('BatchNorm2d') != -1:
         m.weight.data.normal_(1.0, 0.02)
@@ -451,28 +441,26 @@ def print_network(net):
         num_params += param.numel()
     print(net)
     print('Total number of parameters: %d' % num_params)
-    
 
 
-        
 class Feature2FaceGenerator_normal(nn.Module):
     def __init__(self, input_nc=4, output_nc=3, num_downs=8, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False):
         super(Feature2FaceGenerator_normal, self).__init__()
         # construct unet structure
         unet_block = ResUnetSkipConnectionBlock_small(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer,
-                                                innermost=True)
+                                                      innermost=True)
 
         for i in range(num_downs - 5):
             unet_block = ResUnetSkipConnectionBlock_small(ngf * 8, ngf * 8, input_nc=None, submodule=unet_block,
-                                                    norm_layer=norm_layer, use_dropout=use_dropout)
+                                                          norm_layer=norm_layer, use_dropout=use_dropout)
         unet_block = ResUnetSkipConnectionBlock_small(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block,
-                                                norm_layer=norm_layer)
+                                                      norm_layer=norm_layer)
         unet_block = ResUnetSkipConnectionBlock_small(ngf * 2, ngf * 4, input_nc=None, submodule=unet_block,
-                                                norm_layer=norm_layer)
+                                                      norm_layer=norm_layer)
         unet_block = ResUnetSkipConnectionBlock_small(ngf, ngf * 2, input_nc=None, submodule=unet_block,
-                                                norm_layer=norm_layer)
+                                                      norm_layer=norm_layer)
         unet_block = ResUnetSkipConnectionBlock_small(output_nc, ngf, input_nc=input_nc, submodule=unet_block, outermost=True,
-                                                norm_layer=norm_layer)
+                                                      norm_layer=norm_layer)
 
         self.model = unet_block
 
@@ -506,7 +494,7 @@ class ResUnetSkipConnectionBlock_small(nn.Module):
 
         downrelu = nn.ReLU(True)
         uprelu = nn.ReLU(True)
-        if norm_layer != None:
+        if norm_layer is not None:
             downnorm = norm_layer(inner_nc)
             upnorm = norm_layer(outer_nc)
 
@@ -521,7 +509,7 @@ class ResUnetSkipConnectionBlock_small(nn.Module):
             upsample = nn.Upsample(scale_factor=2, mode='nearest')
             upconv = nn.Conv2d(inner_nc, outer_nc, kernel_size=3, stride=1, padding=1, bias=use_bias)
             down = [downconv, downrelu] + res_downconv
-            if norm_layer == None:
+            if norm_layer is None:
                 up = [upsample, upconv, uprelu] + res_upconv
             else:
                 up = [upsample, upconv, upnorm, uprelu] + res_upconv
@@ -529,7 +517,7 @@ class ResUnetSkipConnectionBlock_small(nn.Module):
         else:
             upsample = nn.Upsample(scale_factor=2, mode='nearest')
             upconv = nn.Conv2d(inner_nc * 2, outer_nc, kernel_size=3, stride=1, padding=1, bias=use_bias)
-            if norm_layer == None:
+            if norm_layer is None:
                 down = [downconv, downrelu] + res_downconv
                 up = [upsample, upconv, uprelu] + res_upconv
             else:
@@ -549,7 +537,6 @@ class ResUnetSkipConnectionBlock_small(nn.Module):
         else:
             return torch.cat([x, self.model(x)], 1)
 
-   
 
 class Feature2FaceGenerator_large(nn.Module):
     def __init__(self, input_nc=4, output_nc=3, num_downs=8, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False):
@@ -602,7 +589,7 @@ class ResUnetSkipConnectionBlock(nn.Module):
 
         downrelu = nn.ReLU(True)
         uprelu = nn.ReLU(True)
-        if norm_layer != None:
+        if norm_layer is not None:
             downnorm = norm_layer(inner_nc)
             upnorm = norm_layer(outer_nc)
 
@@ -617,7 +604,7 @@ class ResUnetSkipConnectionBlock(nn.Module):
             upsample = nn.Upsample(scale_factor=2, mode='nearest')
             upconv = nn.Conv2d(inner_nc, outer_nc, kernel_size=3, stride=1, padding=1, bias=use_bias)
             down = [downconv, downrelu] + res_downconv
-            if norm_layer == None:
+            if norm_layer is None:
                 up = [upsample, upconv, uprelu] + res_upconv
             else:
                 up = [upsample, upconv, upnorm, uprelu] + res_upconv
@@ -625,7 +612,7 @@ class ResUnetSkipConnectionBlock(nn.Module):
         else:
             upsample = nn.Upsample(scale_factor=2, mode='nearest')
             upconv = nn.Conv2d(inner_nc * 2, outer_nc, kernel_size=3, stride=1, padding=1, bias=use_bias)
-            if norm_layer == None:
+            if norm_layer is None:
                 down = [downconv, downrelu] + res_downconv
                 up = [upsample, upconv, uprelu] + res_upconv
             else:
@@ -651,7 +638,7 @@ class ResidualBlock(nn.Module):
     def __init__(self, in_features=64, norm_layer=nn.BatchNorm2d):
         super(ResidualBlock, self).__init__()
         self.relu = nn.ReLU(True)
-        if norm_layer == None:
+        if norm_layer is None:
             # hard to converge with out batch or instance norm
             self.block = nn.Sequential(
                 nn.Conv2d(in_features, in_features, 3, 1, 1, bias=False),
@@ -676,11 +663,10 @@ class ResidualBlock(nn.Module):
         # return self.relu(x + self.block(x))
 
 
-
 class Feature2FaceGenerator_Unet(nn.Module):
     def __init__(self, input_nc=4, output_nc=3, num_downs=8, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False):
         super(Feature2FaceGenerator_Unet, self).__init__()
-        
+
         unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer, innermost=True)  # add the innermost layer
         for i in range(num_downs - 5):          # add intermediate layers with ngf * 8 filters
             unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer, use_dropout=use_dropout)
@@ -688,15 +674,13 @@ class Feature2FaceGenerator_Unet(nn.Module):
         unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
         unet_block = UnetSkipConnectionBlock(ngf * 2, ngf * 4, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
         unet_block = UnetSkipConnectionBlock(ngf, ngf * 2, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
-        self.model = UnetSkipConnectionBlock(output_nc, ngf, input_nc=input_nc, submodule=unet_block, outermost=True, norm_layer=norm_layer)  # add the outermost layer
-
+        self.model = UnetSkipConnectionBlock(output_nc, ngf, input_nc=input_nc, submodule=unet_block,
+                                             outermost=True, norm_layer=norm_layer)  # add the outermost layer
 
     def forward(self, input):
         output = self.model(input)
 
         return output
-
-
 
 
 class UnetSkipConnectionBlock(nn.Module):
@@ -769,36 +753,35 @@ class UnetSkipConnectionBlock(nn.Module):
             return torch.cat([x, self.model(x)], 1)
 
 
-
 class MultiscaleDiscriminator(nn.Module):
-    def __init__(self, input_nc, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d, 
+    def __init__(self, input_nc, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d,
                  num_D=3, getIntermFeat=False):
         super(MultiscaleDiscriminator, self).__init__()
         self.num_D = num_D
         self.n_layers = n_layers
         self.getIntermFeat = getIntermFeat
         ndf_max = 64
-     
+
         for i in range(num_D):
             netD = NLayerDiscriminator(input_nc, min(ndf_max, ndf*(2**(num_D-1-i))), n_layers, getIntermFeat)
-            if getIntermFeat:                                
+            if getIntermFeat:
                 for j in range(n_layers+2):
-                    setattr(self, 'scale'+str(i)+'_layer'+str(j), getattr(netD, 'model'+str(j)))                
+                    setattr(self, 'scale'+str(i)+'_layer'+str(j), getattr(netD, 'model'+str(j)))
             else:
                 setattr(self, 'layer'+str(i), netD.model)
 
-        self.downsample = nn.AvgPool2d(3, stride=2, padding=[1, 1], count_include_pad=False)        
+        self.downsample = nn.AvgPool2d(3, stride=2, padding=[1, 1], count_include_pad=False)
 
     def singleD_forward(self, model, input):
         if self.getIntermFeat:
-            result = [input]            
+            result = [input]
             for i in range(len(model)):
-                result.append(model[i](result[-1]))            
+                result.append(model[i](result[-1]))
             return result[1:]
         else:
             return [model(input)]
 
-    def forward(self, input):        
+    def forward(self, input):
         num_D = self.num_D
         result = []
         input_downsampled = input
@@ -806,12 +789,11 @@ class MultiscaleDiscriminator(nn.Module):
             if self.getIntermFeat:
                 model = [getattr(self, 'scale'+str(num_D-1-i)+'_layer'+str(j)) for j in range(self.n_layers+2)]
             else:
-                model = getattr(self, 'layer'+str(num_D-1-i))                                
+                model = getattr(self, 'layer'+str(num_D-1-i))
             result.append(self.singleD_forward(model, input_downsampled))
             if i != (num_D-1):
-                input_downsampled = self.downsample(input_downsampled)                    
+                input_downsampled = self.downsample(input_downsampled)
         return result
-
 
 
 # Defines the PatchGAN discriminator with the specified arguments.
@@ -823,7 +805,7 @@ class NLayerDiscriminator(nn.Module):
 
         kw = 4
         padw = int(np.ceil((kw-1.0)/2))
-        sequence = [[nn.Conv2d(input_nc, ndf, kernel_size=kw, stride=2, padding=padw), 
+        sequence = [[nn.Conv2d(input_nc, ndf, kernel_size=kw, stride=2, padding=padw),
                      nn.LeakyReLU(0.2, True)]]
 
         nf = ndf
@@ -832,7 +814,7 @@ class NLayerDiscriminator(nn.Module):
             nf = min(nf * 2, 512)
             sequence += [[
                 nn.Conv2d(nf_prev, nf, kernel_size=kw, stride=2, padding=padw),
-                nn.BatchNorm2d(nf), 
+                nn.BatchNorm2d(nf),
                 nn.LeakyReLU(0.2, True)
             ]]
 
@@ -853,8 +835,7 @@ class NLayerDiscriminator(nn.Module):
             sequence_stream = []
             for n in range(len(sequence)):
                 sequence_stream += sequence[n]
-            self.model = nn.Sequential(*sequence_stream)            
-
+            self.model = nn.Sequential(*sequence_stream)
 
     def forward(self, input):
         if self.getIntermFeat:
@@ -864,10 +845,4 @@ class NLayerDiscriminator(nn.Module):
                 res.append(model(res[-1]))
             return res[1:]
         else:
-            return self.model(input)      
-
-
-  
-    
-    
-
+            return self.model(input)
