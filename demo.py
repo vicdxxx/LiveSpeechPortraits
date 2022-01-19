@@ -55,7 +55,7 @@ if __name__ == '__main__':
     ############################### I/O Settings ##############################
     # load config files
     if cfg.DEBUG:
-        args_raw = '--id May --driving_audio ./data/Input/00083.wav --device cuda'
+        args_raw = '--id Vic --driving_audio ./data/Input/vic.mp3 --device cuda --save_intermediates 1'
         args_raw = args_raw.split(' ')
         args = []
         for x in args_raw:
@@ -64,7 +64,6 @@ if __name__ == '__main__':
         opt = parser.parse_args(args)
     else:
         opt = parser.parse_args()
-
     device = torch.device(opt.device)
     with open(join('./config/', opt.id + '.yaml')) as f:
         config = yaml.load(f)
@@ -84,11 +83,12 @@ if __name__ == '__main__':
     ############################ Pre-defined Data #############################
     mean_pts3d = np.load(join(data_root, 'mean_pts3d.npy'))
     fit_data = np.load(config['dataset_params']['fit_data_path'])
-    pts3d = np.load(config['dataset_params']['pts3d_path']) - mean_pts3d
+    normalized_pts3d_fix_contour = np.load(config['dataset_params']['pts3d_path'])
+    pts3d = normalized_pts3d_fix_contour - mean_pts3d
     trans = fit_data['trans'][:, :, 0].astype(np.float32)
     mean_translation = trans.mean(axis=0)
     candidate_eye_brow = pts3d[10:, eye_brow_indices]
-    std_mean_pts3d = np.load(config['dataset_params']['pts3d_path']).mean(axis=0)
+    std_mean_pts3d = normalized_pts3d_fix_contour.mean(axis=0)
     # candidates images
     img_candidates = []
     for j in range(4):

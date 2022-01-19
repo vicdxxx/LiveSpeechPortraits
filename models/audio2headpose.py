@@ -34,6 +34,7 @@ class Audio2Headpose(nn.Module):
                                output_size,
                                opt.A2H_wavenet_cond_channels)
         self.item_length = self.WaveNet.receptive_field + opt.time_frame_length - 1
+        pass
 
     def forward(self, history_info, audio_features):
         '''

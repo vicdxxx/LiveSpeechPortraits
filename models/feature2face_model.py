@@ -68,10 +68,7 @@ class Feature2FaceModel(BaseModel):
                 else:
                     beta1, beta2 = opt.beta1, 0.999
                     lr = opt.lr
-                self.optimizer_D = torch.optim.Adam([{'params': self.Feature2Face_D.module.netD.parameters(),
-                                                      'initial_lr': lr}],
-                                                    lr=lr,
-                                                    betas=(beta1, beta2))
+                self.optimizer_D = torch.optim.Adam([{'params': self.Feature2Face_D.module.netD.parameters(), 'initial_lr': lr}], lr=lr, betas=(beta1, beta2))
                 self.optimizers.append(self.optimizer_D)
 
     def init_paras(self, dataset):
@@ -108,7 +105,7 @@ class Feature2FaceModel(BaseModel):
         self.feature_map = self.feature_map.to(self.device)
         self.cand_image = self.cand_image.to(self.device)
         self.tgt_image = self.tgt_image.to(self.device)
-#        self.facial_mask = self.facial_mask.to(self.device)
+        #self.facial_mask = self.facial_mask.to(self.device)
 
     def forward(self):
         ''' forward pass for feature2Face

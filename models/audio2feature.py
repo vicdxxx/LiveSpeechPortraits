@@ -49,6 +49,7 @@ class Audio2Feature(nn.Module):
                 nn.BatchNorm1d(512),
                 nn.LeakyReLU(0.2),
                 nn.Linear(512, output_size))
+        pass
 
     def forward(self, audio_features):
         '''

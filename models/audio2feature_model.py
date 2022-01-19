@@ -18,7 +18,8 @@ class Audio2FeatureModel(BaseModel):
         # specify the models you want to save to the disk. The training/test scripts will call <BaseModel.save_networks> and <BaseModel.load_networks>
         # define networks
         self.model_names = ['Audio2Feature']
-        self.Audio2Feature = networks.init_net(audio2feature.Audio2Feature(opt), init_type='normal', init_gain=0.02, gpu_ids=opt.gpu_ids)
+        model = audio2feature.Audio2Feature(opt)
+        self.Audio2Feature = networks.init_net(model, init_type='normal', init_gain=0.02, gpu_ids=opt.gpu_ids)
 
         # define only during training time
         if self.isTrain:

@@ -190,7 +190,10 @@ class FaceDataset(BaseDataset):
             pass
 
         h, w, _ = tgt_image.shape
-
+        """
+        we do camera calibration and 3D face tracking on the original image and compute
+        a transformation matrix according to the crop and resize parameters
+        """
         # transformations & online data augmentations on images and landmarks
         self.get_crop_coords(landmarks, (w, h), dataset_name, random_trans_scale=0)  # 30.5 µs ± 348 ns  random translation
 

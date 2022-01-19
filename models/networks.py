@@ -35,6 +35,9 @@ class APC_encoder(nn.Module):
 
     def forward(self, inputs, lengths):
         '''
+        We add a linear layer to map the output to predict
+        the future log Mel spectrograms during training, and the linear layer
+        is dropped during testing time
         input:
             inputs: (batch_size, seq_len, mel_dim)
             lengths: (batch_size,)

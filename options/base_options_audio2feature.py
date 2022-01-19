@@ -43,6 +43,7 @@ class BaseOptions():
         parser.add_argument('--feature_decoder', type=str, default='LSTM', help='|WaveNet|LSTM|')
         parser.add_argument('--loss', type=str, default='L2', help='|GMM|L2|')
         parser.add_argument('--A2L_GMM_ndim', type=int, default=25*3)
+        parser.add_argument('--A2L_GMM_ncenter', type=int, default=3)
         parser.add_argument('--sequence_length', type=int, default=240, help='length of training frames in each iteration')
 
         # data setting parameters
