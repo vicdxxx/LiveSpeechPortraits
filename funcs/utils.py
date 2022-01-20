@@ -10,7 +10,7 @@ import torch
 from math import cos, sin
 import numpy as np
 from . import audio_funcs
-
+import config as cfg
 
 class camera(object):
     def __init__(self, fx=0, fy=0, cx=0, cy=0):
@@ -236,28 +236,19 @@ def project_landmarks(camera_intrinsic, viewpoint_R, viewpoint_T, scale, headpos
 def landmark_smooth_3d(pts3d, smooth_sigma=0, area='only_mouth'):
     ''' smooth the input 3d landmarks using gaussian filters on each dimension.
     Args:
-        pts3d: [N, 73, 3]
+        pts3d: [N, cfg.face_landmark_num, 3]
     '''
     # per-landmark smooth
     if not smooth_sigma == 0:
         if area == 'all':
-            pts3d = gaussian_filter1d(pts3d.reshape(-1, 73*3), smooth_sigma, axis=0).reshape(-1, 73, 3)
+            pts3d = gaussian_filter1d(pts3d.reshape(-1, cfg.face_landmark_num*3), smooth_sigma, axis=0).reshape(-1, cfg.face_landmark_num, 3)
         elif area == 'only_mouth':
-            mouth_pts3d = pts3d[:, 46:64, :].copy()
+            mouth_pts3d = pts3d[:, cfg.mouth_range, :].copy()
             mouth_pts3d = gaussian_filter1d(mouth_pts3d.reshape(-1, 18*3), smooth_sigma, axis=0).reshape(-1, 18, 3)
-            pts3d = gaussian_filter1d(pts3d.reshape(-1, 73*3), smooth_sigma, axis=0).reshape(-1, 73, 3)
-            pts3d[:, 46:64, :] = mouth_pts3d
+            pts3d = gaussian_filter1d(pts3d.reshape(-1, cfg.face_landmark_num*3), smooth_sigma, axis=0).reshape(-1, cfg.face_landmark_num, 3)
+            pts3d[:, cfg.mouth_range, :] = mouth_pts3d
 
     return pts3d
-
-
-mouth_indices = list(range(46 * 2, 64 * 2))
-upper_outer_lip = list(range(47, 52))
-upper_inner_lip = [63, 62, 61]
-lower_inner_lip = [58, 59, 60]
-lower_outer_lip = list(range(57, 52, -1))
-lower_mouth = [53, 54, 55, 56, 57, 58, 59, 60]
-upper_mouth = [46, 47, 48, 49, 50, 51, 52, 61, 62, 63]
 
 
 def mouth_pts_AMP(pts3d, is_delta=True, method='XY', paras=[1, 1]):
@@ -267,49 +258,49 @@ def mouth_pts_AMP(pts3d, is_delta=True, method='XY', paras=[1, 1]):
     if method == 'XY':
         AMP_scale_x, AMP_scale_y = paras
         if is_delta:
-            pts3d[:, 46:64, 0] *= AMP_scale_x
-            pts3d[:, 46:64, 1] *= AMP_scale_y
+            pts3d[:, cfg.mouth_range, 0] *= AMP_scale_x
+            pts3d[:, cfg.mouth_range, 1] *= AMP_scale_y
         else:
-            mean_mouth3d_xy = pts3d[:, 46:64, :2].mean(axis=0)
-            pts3d[:, 46:64, 0] += (AMP_scale_x-1) * (pts3d[:, 46:64, 0] - mean_mouth3d_xy[:, 0])
-            pts3d[:, 46:64, 1] += (AMP_scale_y-1) * (pts3d[:, 46:64, 1] - mean_mouth3d_xy[:, 1])
+            mean_mouth3d_xy = pts3d[:, cfg.mouth_range, :2].mean(axis=0)
+            pts3d[:, cfg.mouth_range, 0] += (AMP_scale_x-1) * (pts3d[:, cfg.mouth_range, 0] - mean_mouth3d_xy[:, 0])
+            pts3d[:, cfg.mouth_range, 1] += (AMP_scale_y-1) * (pts3d[:, cfg.mouth_range, 1] - mean_mouth3d_xy[:, 1])
     elif method == 'delta':
         AMP_scale_x, AMP_scale_y = paras
         if is_delta:
-            diff = AMP_scale_x * (pts3d[1:, 46:64] - pts3d[:-1, 46:64])
-            pts3d[1:, 46:64] += diff
+            diff = AMP_scale_x * (pts3d[1:, cfg.mouth_range] - pts3d[:-1, cfg.mouth_range])
+            pts3d[1:, cfg.mouth_range] += diff
 
     elif method == 'XYZ':
         AMP_scale_x, AMP_scale_y, AMP_scale_z = paras
         if is_delta:
-            pts3d[:, 46:64, 0] *= AMP_scale_x
-            pts3d[:, 46:64, 1] *= AMP_scale_y
-            pts3d[:, 46:64, 2] *= AMP_scale_z
+            pts3d[:, cfg.mouth_range, 0] *= AMP_scale_x
+            pts3d[:, cfg.mouth_range, 1] *= AMP_scale_y
+            pts3d[:, cfg.mouth_range, 2] *= AMP_scale_z
 
     elif method == 'LowerMore':
         upper_x, upper_y, upper_z, lower_x, lower_y, lower_z = paras
         if is_delta:
-            pts3d[:, upper_mouth, 0] *= upper_x
-            pts3d[:, upper_mouth, 1] *= upper_y
-            pts3d[:, upper_mouth, 2] *= upper_z
-            pts3d[:, lower_mouth, 0] *= lower_x
-            pts3d[:, lower_mouth, 1] *= lower_y
-            pts3d[:, lower_mouth, 2] *= lower_z
+            pts3d[:, cfg.upper_mouth, 0] *= upper_x
+            pts3d[:, cfg.upper_mouth, 1] *= upper_y
+            pts3d[:, cfg.upper_mouth, 2] *= upper_z
+            pts3d[:, cfg.lower_mouth, 0] *= lower_x
+            pts3d[:, cfg.lower_mouth, 1] *= lower_y
+            pts3d[:, cfg.lower_mouth, 2] *= lower_z
 
     elif method == 'CloseSmall':
         open_x, open_y, open_z, close_x, close_y, close_z = paras
         nframe = pts3d.shape[0]
         for i in tqdm(range(nframe), desc='AMP mouth..'):
-            if sum(pts3d[i, upper_mouth, 1] > 0) + sum(pts3d[i, lower_mouth, 1] < 0) > 16 * 0.3:
+            if sum(pts3d[i, cfg.upper_mouth, 1] > 0) + sum(pts3d[i, cfg.lower_mouth, 1] < 0) > 16 * 0.3:
                 # open
-                pts3d[i, 46:64, 0] *= open_x
-                pts3d[i, 46:64, 1] *= open_y
-                pts3d[i, 46:64, 2] *= open_z
+                pts3d[i, cfg.mouth_range, 0] *= open_x
+                pts3d[i, cfg.mouth_range, 1] *= open_y
+                pts3d[i, cfg.mouth_range, 2] *= open_z
             else:
                 # close
-                pts3d[:, 46:64, 0] *= close_x
-                pts3d[:, 46:64, 1] *= close_y
-                pts3d[:, 46:64, 2] *= close_z
+                pts3d[:, cfg.mouth_range, 0] *= close_x
+                pts3d[:, cfg.mouth_range, 1] *= close_y
+                pts3d[:, cfg.mouth_range, 2] *= close_z
 
     return pts3d
 
@@ -317,10 +308,10 @@ def mouth_pts_AMP(pts3d, is_delta=True, method='XY', paras=[1, 1]):
 def solve_intersect_mouth(pts3d):
     ''' solve the generated intersec lips, usually happens in mouth AMP usage.
     Args:
-        pts3d: [N, 73, 3]
+        pts3d: [N, cfg.face_landmark_num, 3]
     '''
-    upper_inner = pts3d[:, upper_inner_lip]
-    lower_inner = pts3d[:, lower_inner_lip]
+    upper_inner = pts3d[:, cfg.upper_inner_lip]
+    lower_inner = pts3d[:, cfg.lower_inner_lip]
 
     lower_inner_y = lower_inner[:, :, 1]
     upper_inner_y = upper_inner[:, :, 1]
@@ -332,13 +323,13 @@ def solve_intersect_mouth(pts3d):
     inner_y_diff = lower_inner_y[flip] - upper_inner_y[flip]
     half_inner_y_diff = inner_y_diff * 0.5
     # upper inner
-    pts3d[flip[:, None], upper_inner_lip, 1] += half_inner_y_diff
+    pts3d[flip[:, None], cfg.upper_inner_lip, 1] += half_inner_y_diff
     # lower inner
-    pts3d[flip[:, None], lower_inner_lip, 1] -= half_inner_y_diff
+    pts3d[flip[:, None], cfg.lower_inner_lip, 1] -= half_inner_y_diff
     # upper outer
-    pts3d[flip[:, None], upper_outer_lip, 1] += half_inner_y_diff.mean()
+    pts3d[flip[:, None], cfg.upper_outer_lip, 1] += half_inner_y_diff.mean()
     # lower outer
-    pts3d[flip[:, None], lower_outer_lip, 1] -= half_inner_y_diff.mean()
+    pts3d[flip[:, None], cfg.lower_outer_lip, 1] -= half_inner_y_diff.mean()
 
     return pts3d
 

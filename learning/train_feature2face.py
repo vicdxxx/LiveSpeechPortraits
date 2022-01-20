@@ -6,10 +6,9 @@ and the synchronized audio waves are sampled at 16KHz frequency
 
 crop the video to keep the face at the center and then resize to 512 × 512
 
-73 pre-defned facial landmarks
+cfg.face_landmark_num pre-defned facial landmarks
 """
 import torch
-from datasets.audiovisual_dataset import AudioVisualDataset
 from datasets.face_dataset import FaceDataset
 from tqdm import tqdm
 from options.test_audio2feature_options import TestOptions as FeatureOptions

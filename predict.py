@@ -28,6 +28,7 @@ from funcs import utils, audio_funcs
 #from demo import write_video_with_audio
 import warnings
 import shutil
+import config as cfg
 
 warnings.filterwarnings("ignore")
 
@@ -210,7 +211,7 @@ class Predictor(cog.Predictor):
         #### 5. Post-Processing
         print('5. Post-processing...')
         nframe = min(pred_Feat.shape[0], pred_Head.shape[0])
-        pred_pts3d = np.zeros([nframe, 73, 3])
+        pred_pts3d = np.zeros([nframe, cfg.face_landmark_num, 3])
         pred_pts3d[:, mouth_indices] = pred_Feat.reshape(-1, 25, 3)[:nframe]
 
         ## mouth
@@ -227,10 +228,10 @@ class Predictor(cog.Predictor):
         pred_headpose[:, 0] += 180
 
         ## compute projected landmarks
-        pred_landmarks = np.zeros([nframe, 73, 2], dtype=np.float32)
-        final_pts3d = np.zeros([nframe, 73, 3], dtype=np.float32)
+        pred_landmarks = np.zeros([nframe, cfg.face_landmark_num, 2], dtype=np.float32)
+        final_pts3d = np.zeros([nframe, cfg.face_landmark_num, 3], dtype=np.float32)
         final_pts3d[:] = std_mean_pts3d.copy()
-        final_pts3d[:, 46:64] = pred_pts3d[:nframe, 46:64]
+        final_pts3d[:, cfg.mouth_range] = pred_pts3d[:nframe, cfg.mouth_range]
         for k in tqdm(range(nframe)):
             ind = k % candidate_eye_brow.shape[0]
             final_pts3d[k, eye_brow_indices] = candidate_eye_brow[ind] + mean_pts3d[eye_brow_indices]

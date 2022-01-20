@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.optim import lr_scheduler
 from torch.nn import init
 import functools
-
+import config as cfg
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
@@ -102,8 +102,8 @@ class WaveNet(nn.Module):
                  cond=True,
                  input_channels=128,
                  ncenter=1,
-                 ndim=73*2,
-                 output_channels=73*3,
+                 ndim=cfg.face_landmark_num*2,
+                 output_channels=cfg.face_landmark_num*3,
                  cond_channels=256,
                  activation='leakyrelu'):
         super(WaveNet, self).__init__()

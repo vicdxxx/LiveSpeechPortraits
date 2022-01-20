@@ -1,3 +1,6 @@
+import sys
+sys.path.append("..")
+
 from funcs import utils
 from models.networks import APC_encoder
 import numpy as np
@@ -7,8 +10,7 @@ import librosa
 import torch
 import scipy.io as sio
 from datasets.base_dataset import BaseDataset
-import sys
-sys.path.append("..")
+import config as cfg
 
 
 class AudioVisualDataset(BaseDataset):
@@ -103,7 +105,7 @@ class AudioVisualDataset(BaseDataset):
             if self.opt.only_mouth:
                 self.indices = self.mouth_related_indices
             else:
-                self.indices = np.arange(73)
+                self.indices = np.arange(cfg.face_landmark_num)
         if opt.use_delta_pts:
             self.pts3d_mean = np.load(os.path.join(self.dataset_root, 'mean_pts3d.npy'))
 

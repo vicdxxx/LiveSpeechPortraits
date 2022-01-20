@@ -11,6 +11,7 @@ import io
 import cv2
 import h5py
 import albumentations as A
+import config as cfg
 
 
 class FaceDataset(BaseDataset):
@@ -31,17 +32,9 @@ class FaceDataset(BaseDataset):
 
         # default settings
         # currently, we have 8 parts for face parts
-        self.part_list = [[list(range(0, 15))],                                # contour
-                          [[15, 16, 17, 18, 18, 19, 20, 15]],                         # right eyebrow
-                          [[21, 22, 23, 24, 24, 25, 26, 21]],                         # left eyebrow
-                          [range(35, 44)],                                     # nose
-                          [[27, 65, 28, 68, 29], [29, 67, 30, 66, 27]],                # right eye
-                          [[33, 69, 32, 72, 31], [31, 71, 34, 70, 33]],                # left eye
-                          [range(46, 53), [52, 53, 54, 55, 56, 57, 46]],             # mouth
-                          [[46, 63, 62, 61, 52], [52, 60, 59, 58, 46]]                 # tongue
-                          ]
-        self.mouth_outer = [46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 46]
-        self.label_list = [1, 1, 2, 3, 3, 4, 5]  # labeling for different facial parts
+        self.part_list = cfg.part_list
+        self.mouth_outer = cfg.mouth_outer
+        self.label_list = cfg.label_list
 
         # only load in train mode
 
@@ -174,7 +167,7 @@ class FaceDataset(BaseDataset):
         data_index = (ind - self.sample_start[dataset_index]) * self.opt.frame_jump + np.random.randint(self.opt.frame_jump)
 
         target_ind = data_index + 1  # history_ind, current_ind
-        landmarks = self.landmarks2D[dataset_index][target_ind]  # [73, 2]
+        landmarks = self.landmarks2D[dataset_index][target_ind]  # [cfg.face_landmark_num, 2]
         shoulders = self.shoulders[dataset_index][target_ind].copy()
 
         dataset_name = self.clip_names[dataset_index]

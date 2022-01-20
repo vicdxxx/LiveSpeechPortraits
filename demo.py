@@ -1,4 +1,6 @@
 import os
+#os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "'max_split_size_mb':500"
+#set PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
 import subprocess
 from os.path import join
 from tqdm import tqdm
@@ -55,7 +57,9 @@ if __name__ == '__main__':
     ############################### I/O Settings ##############################
     # load config files
     if cfg.DEBUG:
-        args_raw = '--id Vic --driving_audio ./data/Input/vic.mp3 --device cuda --save_intermediates 1'
+        #--save_intermediates 1
+        #python demo.py --id Vic --driving_audio ./data/Input/vic.mp3 --device cuda
+        args_raw = '--id Vic --driving_audio ./data/Input/vic.mp3 --device cuda'
         args_raw = args_raw.split(' ')
         args = []
         for x in args_raw:
@@ -75,10 +79,9 @@ if __name__ == '__main__':
         os.makedirs(save_root)
 
     ############################ Hyper Parameters #############################
-    h, w, sr, FPS = 512, 512, 16000, 60
-    mouth_indices = np.concatenate([np.arange(4, 11), np.arange(46, 64)])
-    eye_brow_indices = [27, 65, 28, 68, 29, 67, 30, 66, 31, 72, 32, 69, 33, 70, 34, 71]
-    eye_brow_indices = np.array(eye_brow_indices, np.int32)
+    h, w, sr, FPS = cfg.h, cfg.w, cfg.sr, cfg.FPS
+    mouth_indices = cfg.mouth_indices
+    eye_brow_indices = cfg.eye_brow_indices
 
     ############################ Pre-defined Data #############################
     mean_pts3d = np.load(join(data_root, 'mean_pts3d.npy'))
@@ -208,7 +211,7 @@ if __name__ == '__main__':
     # 5. Post-Processing
     print('5. Post-processing...')
     nframe = min(pred_Feat.shape[0], pred_Head.shape[0])
-    pred_pts3d = np.zeros([nframe, 73, 3])
+    pred_pts3d = np.zeros([nframe, cfg.face_landmark_num, 3])
     pred_pts3d[:, mouth_indices] = pred_Feat.reshape(-1, 25, 3)[:nframe]
 
     # mouth
@@ -225,10 +228,10 @@ if __name__ == '__main__':
     pred_headpose[:, 0] += 180
 
     # compute projected landmarks
-    pred_landmarks = np.zeros([nframe, 73, 2], dtype=np.float32)
-    final_pts3d = np.zeros([nframe, 73, 3], dtype=np.float32)
+    pred_landmarks = np.zeros([nframe, cfg.face_landmark_num, 2], dtype=np.float32)
+    final_pts3d = np.zeros([nframe, cfg.face_landmark_num, 3], dtype=np.float32)
     final_pts3d[:] = std_mean_pts3d.copy()
-    final_pts3d[:, 46:64] = pred_pts3d[:nframe, 46:64]
+    final_pts3d[:, cfg.mouth_range] = pred_pts3d[:nframe, cfg.mouth_range]
     for k in tqdm(range(nframe)):
         ind = k % candidate_eye_brow.shape[0]
         final_pts3d[k, eye_brow_indices] = candidate_eye_brow[ind] + mean_pts3d[eye_brow_indices]
