@@ -53,6 +53,10 @@ class BaseOptions():
         parser.add_argument('--predict_length', type=int, default=5)
         parser.add_argument('--audio_windows', type=int, default=2)
         parser.add_argument('--time_frame_length', type=int, default=240, help='length of training frames in each iteration')
+        parser.add_argument('--A2H_receptive_field', type=int, default=255, help='length of training frames in each iteration')
+
+        parser.add_argument('--APC_model_path', type=str, default='./data/APC_epoch_160.model')
+        parser.add_argument('--dataset_type', type=str, default='train')
 
         # APC parameters
         parser.add_argument('--APC_hidden_size', type=int, default=512)

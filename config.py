@@ -38,7 +38,7 @@ mouth_range = range(46, 64)
 # use 68 face landmarks
 face_landmark_num = 68
 shoulder_landmark_num = 0
-h, w, sr, FPS = 512, 512, 16000, 30
+h, w, sr, FPS = 512, 512, 16000, 22.0
 mouth_indices = np.concatenate([np.arange(48, 60), np.arange(60, 68)])
 eye_brow_indices = np.concatenate([np.arange(17, 22), np.arange(22, 27)])
 part_list = [[list(range(0, 17))],                                # contour

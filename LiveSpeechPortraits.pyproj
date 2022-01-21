@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{87000fdb-e678-453c-9779-7ee42066a126}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>demo.py</StartupFile>
+    <StartupFile>learning\hyperpaprams.py</StartupFile>
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -809,6 +809,7 @@
     <Compile Include="demo.py" />
     <Compile Include="funcs\audio_funcs.py" />
     <Compile Include="funcs\utils.py" />
+    <Compile Include="learning\hyperpaprams.py" />
     <Compile Include="learning\test_audio2feature.py" />
     <Compile Include="learning\test_audio2headpose.py" />
     <Compile Include="learning\test_feature2face.py" />

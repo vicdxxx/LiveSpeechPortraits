@@ -1,16 +1,16 @@
+import config as cfg
+from . import audio_funcs
+import numpy as np
+from math import cos, sin
+import torch
+from numpy.linalg import solve
+from scipy.ndimage import gaussian_filter1d
+from sklearn.neighbors import KDTree
+import time
+from tqdm import tqdm
 import sys
 sys.path.append("..")
 
-from tqdm import tqdm
-import time
-from sklearn.neighbors import KDTree
-from scipy.ndimage import gaussian_filter1d
-from numpy.linalg import solve
-import torch
-from math import cos, sin
-import numpy as np
-from . import audio_funcs
-import config as cfg
 
 class camera(object):
     def __init__(self, fx=0, fy=0, cx=0, cy=0):
@@ -341,3 +341,129 @@ def headpose_smooth(headpose, smooth_sigmas=[0, 0], method='gaussian'):
     headpose_smooth = np.concatenate([rot, trans], axis=1)
 
     return headpose_smooth
+
+
+interactive_mode = 1
+ax = None
+verts_loop = None
+first_time = True
+def show_pointcloud_loop(arg=0):
+    global interactive_mode
+    global ax
+    global verts_loop
+    global first_time
+    from matplotlib import pyplot as plt
+    surf = ax.scatter(verts_loop[:, 0] * 1.2, verts_loop[:, 1], verts_loop[:, 2], c='cyan', alpha=1.0, edgecolor='b')
+    if not interactive_mode:
+        if first_time:
+            plt.show()
+            first_time = False
+        else:
+            plt.show(block=False)
+    if interactive_mode:
+        plt.pause(0.001)
+
+
+def show_pointcloud(verts, use_pytorch3d=1, use_plt_loop=0, block=None, use_interactive_mode=1):
+    if use_pytorch3d:
+        import torch
+        from pytorch3d.structures import Pointclouds
+        from pytorch3d.vis.plotly_vis import AxisArgs, plot_scene
+        if torch.cuda.is_available():
+            device = torch.device("cuda:0")
+            torch.cuda.set_device(device)
+        else:
+            device = torch.device("cpu")
+        if not isinstance(verts, torch.Tensor):
+            verts = torch.Tensor(verts).to(device)
+
+        point_cloud = Pointclouds(points=[verts])
+        point_cloud_person = {
+            "3DMM": {
+                "obj": point_cloud
+            }
+        }
+        fig = plot_scene(
+            point_cloud_person,
+            xaxis={"backgroundcolor": "rgb(200, 200, 230)"},
+            yaxis={"backgroundcolor": "rgb(230, 200, 200)"},
+            zaxis={"backgroundcolor": "rgb(200, 230, 200)"},
+            axis_args=AxisArgs(showgrid=True))
+        fig.show()
+    elif use_plt_loop:
+        import pylab
+        from matplotlib import pyplot as plt
+        global interactive_mode
+        global ax
+        global verts_loop
+        global first_time
+        interactive_mode = use_interactive_mode
+        if interactive_mode:
+            plt.ion()
+        import matplotlib
+        matplotlib.use('TkAgg')
+        fig = plt.figure(0, figsize=plt.figaspect(1.0))
+        fig.canvas.mpl_connect('key_press_event', show_pointcloud_loop)
+        verts_loop = verts
+        ax = fig.add_subplot(1, 1, 1, projection='3d')
+        ax.view_init(elev=0, azim=-90)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
+        ax.set_xlim(-1.0, 1.0)
+        ax.set_ylim(-1.0, 1.0)
+        ax.set_zlim(-1.0, 1.0)
+        show_pointcloud_loop()
+    else:
+        from matplotlib import pyplot as plt
+        import matplotlib
+        matplotlib.use('TkAgg')
+        fig = plt.figure(figsize=plt.figaspect(.5))
+        ax = fig.add_subplot(1, 1, 1, projection='3d')
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
+        surf = ax.scatter(verts[:, 0] * 1.2, verts[:, 1], verts[:, 2], c='cyan', alpha=1.0, edgecolor='b')
+        plt.show()
+
+
+def show_image(image, wait=None, name="x", channel_reverse=True, points=None):
+    import numpy as np
+    import cv2 as cv
+    if isinstance(image, np.ndarray):
+        img = image.copy()
+    else:
+        import paddle
+        if isinstance(image, paddle.Tensor):
+            img = image.numpy().copy()
+        #import torch
+        # if isinstance(image, torch.Tensor):
+        #    img = image.cpu().detach().numpy().copy()
+
+    if len(img.shape) == 4:
+        if img.shape[1] == 3:
+            img = img.transpose(0, 2, 3, 1)[0]
+        if img.shape[1] == 1:
+            img = image.transpose(0, 2, 3, 1)[0]
+    elif len(img.shape) == 3:
+        if img.shape[0] == 3:
+            img = img.transpose(1, 2, 0)
+        elif img.shape[1] > img.shape[0] and img.shape[2] > img.shape[0]:
+            img = img[0]
+    img = cv.normalize(img, None, 0, 255, cv.NORM_MINMAX)
+    img = img.astype(np.uint8)
+    img = np.squeeze(img)
+
+    if points is not None:
+        print("points num:", len(points))
+        for point in points:
+            point = (int(point[0]), int(point[1]))
+            cv.circle(img, point, 3, (0, 255, 0), -1)
+    if len(img.shape) == 3 and channel_reverse:
+        img = img[:, :, ::-1]
+    print(img.shape)
+    cv.namedWindow(name, 0)
+    cv.resizeWindow(name, 512, 512)
+    cv.imshow(name, img)
+    if wait is not None:
+        cv.waitKey(wait)

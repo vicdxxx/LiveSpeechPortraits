@@ -27,7 +27,7 @@ class FaceDataset(BaseDataset):
         - define the image transformation.
         """
         BaseDataset.__init__(self, opt)
-        self.state = 'Train' if self.opt.isTrain else 'Test'
+        self.state = 'train' if self.opt.isTrain else 'test'
         self.dataset_name = opt.dataset_names[0]
 
         # default settings
@@ -39,11 +39,11 @@ class FaceDataset(BaseDataset):
         # only load in train mode
 
         self.dataset_root = os.path.join(self.root, self.dataset_name)
-        if self.state == 'Train':
+        if self.state == 'train':
             self.clip_names = opt.train_dataset_names
-        elif self.state == 'Val':
+        elif self.state == 'val':
             self.clip_names = opt.validate_dataset_names
-        elif self.state == 'Test':
+        elif self.state == 'test':
             self.clip_names = opt.test_dataset_names
 
         self.clip_nums = len(self.clip_names)
@@ -62,12 +62,13 @@ class FaceDataset(BaseDataset):
         self.total_len = 0
         if self.opt.isTrain:
             for i in range(self.clip_nums):
-                name = self.clip_names[i]
-                clip_root = os.path.join(self.dataset_root, name)
+                clip_name = self.clip_names[i]
+                clip_root = os.path.join(self.dataset_root, clip_name)
                 # basic image info
-                img_file_path = os.path.join(clip_root, name + '.h5')
-                img_file = h5py.File(img_file_path, 'r')[name]
-                example = np.asarray(Image.open(io.BytesIO(img_file[0])))
+                img_file_path = os.path.join(clip_root, clip_name + '.h5')
+                img_file = h5py.File(img_file_path, 'r')[clip_name]
+                #example = np.asarray(Image.open(io.BytesIO(img_file[0])))
+                example = np.asarray(Image.open(img_file[0]))
                 h, w, _ = example.shape
 
                 landmark_path = os.path.join(clip_root, 'tracked2D_normalized_pts_fix_contour.npy')
@@ -86,15 +87,15 @@ class FaceDataset(BaseDataset):
                     A.Crop(x_min, y_min, x_max, y_max)])
 
                 if self.opt.isH5:
-                    tgt_file_path = os.path.join(clip_root, name + '.h5')
-                    tgt_file = h5py.File(tgt_file_path, 'r')[name]
+                    tgt_file_path = os.path.join(clip_root, clip_name + '.h5')
+                    tgt_file = h5py.File(tgt_file_path, 'r')[clip_name]
                     image_length = len(tgt_file)
                 else:
                     tgt_paths = list(map(lambda x: str(x), sorted(list(Path(clip_root).glob('*'+self.opt.suffix)), key=lambda x: int(x.stem))))
                     image_length = len(tgt_paths)
                     self.tgts_paths[i] = tgt_paths
                 if not self.landmarks2D[i].shape[0] == image_length:
-                    raise ValueError('In dataset {} length of landmarks and images are not equal!'.format(name))
+                    raise ValueError('In dataset {} length of landmarks and images are not equal!'.format(clip_name))
 
                 # tracked 3d info
                 fit_data_path = os.path.join(clip_root, '3d_fit_data.npz')
@@ -103,7 +104,7 @@ class FaceDataset(BaseDataset):
                 self.rot[i] = fit_data['rot_angles'].astype(np.float32)
                 self.trans[i] = fit_data['trans'][:, :, 0].astype(np.float32)
                 if not self.pts3d[i].shape[0] == image_length:
-                    raise ValueError('In dataset {} length of 3d pts and images are not equal!'.format(name))
+                    raise ValueError('In dataset {} length of 3d pts and images are not equal!'.format(clip_name))
 
                 # candidates images
 
@@ -175,7 +176,8 @@ class FaceDataset(BaseDataset):
         if self.opt.isH5:
             tgt_file_path = os.path.join(clip_root, dataset_name + '.h5')
             tgt_file = h5py.File(tgt_file_path, 'r')[dataset_name]
-            tgt_image = np.asarray(Image.open(io.BytesIO(tgt_file[target_ind])))
+            #tgt_image = np.asarray(Image.open(io.BytesIO(tgt_file[target_ind])))
+            tgt_image = np.asarray(Image.open(tgt_file[target_ind]))
 
             # do transform
             tgt_image = self.common_dataset_transform(tgt_image, dataset_index, None)

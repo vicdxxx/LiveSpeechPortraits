@@ -45,6 +45,11 @@ class BaseOptions():
         parser.add_argument('--A2L_GMM_ndim', type=int, default=25*3)
         parser.add_argument('--A2L_GMM_ncenter', type=int, default=3)
         parser.add_argument('--sequence_length', type=int, default=240, help='length of training frames in each iteration')
+        parser.add_argument('--time_frame_length', type=int, default=240, help='length of training frames in each iteration')
+        parser.add_argument('--A2L_receptive_field', type=int, default=255, help='length of training frames in each iteration')
+
+        parser.add_argument('--APC_model_path', type=str, default='./data/APC_epoch_160.model')
+        parser.add_argument('--dataset_type', type=str, default='train')
 
         # data setting parameters
         parser.add_argument('--FPS', type=str, default=60, help='video fps')

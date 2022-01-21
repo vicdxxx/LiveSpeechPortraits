@@ -27,6 +27,7 @@ class AudioVisualDataset(BaseDataset):
     def __init__(self, opt):
         # save the option and dataset root
         BaseDataset.__init__(self, opt)
+        self.opt = opt
         self.isTrain = self.opt.isTrain
         self.state = opt.dataset_type
         self.dataset_name = opt.dataset_names
@@ -70,11 +71,11 @@ class AudioVisualDataset(BaseDataset):
 
         self.total_len = 0
         self.dataset_root = os.path.join(self.root, self.dataset_name)
-        if self.state == 'Train':
+        if self.state == 'train':
             self.clip_names = opt.train_dataset_names
-        elif self.state == 'Val':
+        elif self.state == 'val':
             self.clip_names = opt.validate_dataset_names
-        elif self.state == 'Test':
+        elif self.state == 'test':
             self.clip_names = opt.test_dataset_names
 
         self.clip_nums = len(self.clip_names)
@@ -90,7 +91,7 @@ class AudioVisualDataset(BaseDataset):
         self.velocity_pose = [''] * self.clip_nums
         self.acceleration_pose = [''] * self.clip_nums
         self.mean_trans = [''] * self.clip_nums
-        if self.state == 'Test':
+        if self.state == 'test':
             self.landmarks = [''] * self.clip_nums
         # meta info
         self.start_point = [''] * self.clip_nums
@@ -122,7 +123,8 @@ class AudioVisualDataset(BaseDataset):
 
             if self.opt.audio_encoder == 'APC':
                 APC_name = os.path.split(self.opt.APC_model_path)[-1]
-                APC_feature_file = name + '_APC_feature_V0324_ckpt_{}.npy'.format(APC_name)
+                #APC_feature_file = name + '_APC_feature_V0324_ckpt_{}.npy'.format(APC_name)
+                APC_feature_file = name + '_APC_feature_{}.npy'.format(APC_name)
                 APC_feature_path = os.path.join(clip_root, APC_feature_file)
                 need_deepfeats = False if os.path.exists(APC_feature_path) else True
                 if not need_deepfeats:
