@@ -4,6 +4,7 @@ from util import util
 import torch
 import numpy as np
 import models
+import config as cfg
 
 
 class BaseOptions():
@@ -40,21 +41,23 @@ class BaseOptions():
                             help='Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, \
                                 only a subset is loaded.')
         parser.add_argument('--audio_encoder', type=str, default='APC', help='|CNN|LSTM|APC|NPC|')
+        parser.add_argument('--audiofeature_input_channels', type=int, default=80, help='input channels of audio features')
         parser.add_argument('--feature_decoder', type=str, default='LSTM', help='|WaveNet|LSTM|')
         parser.add_argument('--loss', type=str, default='L2', help='|GMM|L2|')
-        parser.add_argument('--A2L_GMM_ndim', type=int, default=25*3)
+        parser.add_argument('--A2L_GMM_ndim', type=int, default=cfg.A2L_GMM_ndim)
         parser.add_argument('--A2L_GMM_ncenter', type=int, default=3)
-        parser.add_argument('--sequence_length', type=int, default=240, help='length of training frames in each iteration')
-        parser.add_argument('--time_frame_length', type=int, default=240, help='length of training frames in each iteration')
-        parser.add_argument('--A2L_receptive_field', type=int, default=255, help='length of training frames in each iteration')
+
+        parser.add_argument('--sequence_length', type=int, default=cfg.sequence_length, help='length of training frames in each iteration')
+        parser.add_argument('--time_frame_length', type=int, default=cfg.time_frame_length, help='length of training frames in each iteration')
+        parser.add_argument('--A2L_receptive_field', type=int, default=cfg.A2L_receptive_field, help='length of training frames in each iteration')
 
         parser.add_argument('--APC_model_path', type=str, default='./data/APC_epoch_160.model')
         parser.add_argument('--dataset_type', type=str, default='train')
 
         # data setting parameters
-        parser.add_argument('--FPS', type=str, default=60, help='video fps')
-        parser.add_argument('--sample_rate', type=int, default=16000, help='audio sample rate')
-        parser.add_argument('--audioRF_history', type=int, default=60, help='audio history receptive field length')
+        parser.add_argument('--FPS', type=str, default=cfg.FPS, help='video fps')
+        parser.add_argument('--sample_rate', type=int, default=cfg.sr, help='audio sample rate')
+        parser.add_argument('--audioRF_history', type=int, default=cfg.FPS, help='audio history receptive field length')
         parser.add_argument('--audioRF_future', type=int, default=0, help='audio future receptive field length')
         parser.add_argument('--feature_dtype', type=str, default='pts3d', help='|FW|pts3d|')
         parser.add_argument('--ispts_norm', type=int, default=1, help='use normalized 3d points.')
@@ -75,7 +78,7 @@ class BaseOptions():
         parser.add_argument('--LSTM_layers', type=int, default=3)
         parser.add_argument('--LSTM_dropout', type=float, default=0)
         parser.add_argument("--LSTM_residual", action="store_true")
-        parser.add_argument('--LSTM_sequence_length', type=int, default=60)
+        parser.add_argument('--LSTM_sequence_length', type=int, default=cfg.FPS)
 
         # additional parameters
         parser.add_argument('--verbose', action='store_true', help='if specified, print more debugging information')

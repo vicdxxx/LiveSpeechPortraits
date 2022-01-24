@@ -78,8 +78,13 @@ class Audio2FeatureModel(BaseModel):
 
         elif self.opt.loss == 'L2':
             frame_future = self.opt.frame_future
+            #if self.preds.shape[1] != self.target_info.shape[1]:
+            #    self.loss = 0
+            valid_feature_num = self.preds.shape[1]
+            gt_feature_num = self.target_info.shape[1]
+            extra_feature_num = max(gt_feature_num - valid_feature_num, 0)
             if not frame_future == 0:
-                self.loss = self.featureL2loss(self.preds[:, frame_future:], self.target_info[:, :-frame_future]) * 1000
+                self.loss = self.featureL2loss(self.preds[:, frame_future:], self.target_info[:, :-frame_future-extra_feature_num]) * 1000
             else:
                 self.loss = self.featureL2loss(self.preds, self.target_info) * 1000
 

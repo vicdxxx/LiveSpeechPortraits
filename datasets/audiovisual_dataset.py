@@ -27,7 +27,6 @@ class AudioVisualDataset(BaseDataset):
     def __init__(self, opt):
         # save the option and dataset root
         BaseDataset.__init__(self, opt)
-        self.opt = opt
         self.isTrain = self.opt.isTrain
         self.state = opt.dataset_type
         self.dataset_name = opt.dataset_names
@@ -37,8 +36,8 @@ class AudioVisualDataset(BaseDataset):
 
         self.audioRF_history = opt.audioRF_history
         self.audioRF_future = opt.audioRF_future
-        self.compute_mel_online = opt.compute_mel_online
-        self.feature_name = opt.feature_name
+        #self.compute_mel_online = opt.compute_mel_online
+        #self.feature_name = opt.feature_name
 
         self.audio_samples_one_frame = self.sample_rate / self.fps
         self.frame_jump_stride = opt.frame_jump_stride
@@ -79,47 +78,31 @@ class AudioVisualDataset(BaseDataset):
             self.clip_names = opt.test_dataset_names
 
         self.clip_nums = len(self.clip_names)
-        # main info
-        self.audio = [''] * self.clip_nums
-        self.audio_features = [''] * self.clip_nums
-        self.feats = [''] * self.clip_nums
-        self.exps = [''] * self.clip_nums
-        self.pts3d = [''] * self.clip_nums
-        self.rot_angles = [''] * self.clip_nums
-        self.trans = [''] * self.clip_nums
-        self.headposes = [''] * self.clip_nums
-        self.velocity_pose = [''] * self.clip_nums
-        self.acceleration_pose = [''] * self.clip_nums
-        self.mean_trans = [''] * self.clip_nums
-        if self.state == 'test':
-            self.landmarks = [''] * self.clip_nums
-        # meta info
-        self.start_point = [''] * self.clip_nums
-        self.end_point = [''] * self.clip_nums
-        self.len = [''] * self.clip_nums
-        self.sample_start = []
-        self.clip_valid = ['True'] * self.clip_nums
-        self.invalid_clip = []
+        self.init_variables()
 
-        self.mouth_related_indices = np.concatenate([np.arange(4, 11), np.arange(46, 64)])
+        self.mouth_related_indices = cfg.mouth_indices
         if self.task == 'Audio2Feature':
             if self.opt.only_mouth:
                 self.indices = self.mouth_related_indices
             else:
                 self.indices = np.arange(cfg.face_landmark_num)
         if opt.use_delta_pts:
-            self.pts3d_mean = np.load(os.path.join(self.dataset_root, 'mean_pts3d.npy'))
+            #self.pts3d_mean = np.load(os.path.join(self.dataset_root, 'mean_pts3d.npy'))
+            self.pts3d_mean = [None] * self.clip_nums
 
         for i in range(self.clip_nums):
             name = self.clip_names[i]
             clip_root = os.path.join(self.dataset_root, name)
             # audio
-            if os.path.exists(os.path.join(clip_root, name + '_denoise.wav')):
-                audio_path = os.path.join(clip_root, name + '_denoise.wav')
+            if os.path.exists(os.path.join(clip_root, name + '_denoise' + cfg.audio_extension)):
+                audio_path = os.path.join(clip_root, name + '_denoise' + cfg.audio_extension)
                 print('find denoised wav!')
             else:
-                audio_path = os.path.join(clip_root, name + '.wav')
+                audio_path = os.path.join(clip_root, name + cfg.audio_extension)
             self.audio[i], _ = librosa.load(audio_path, sr=self.sample_rate)
+
+            if opt.use_delta_pts:
+                self.pts3d_mean[i] = np.load(os.path.join(clip_root, 'mean_pts3d.npy'))
 
             if self.opt.audio_encoder == 'APC':
                 APC_name = os.path.split(self.opt.APC_model_path)[-1]
@@ -144,7 +127,8 @@ class AudioVisualDataset(BaseDataset):
             else:
                 ori_pts3d = np.load(os.path.join(clip_root, 'tracked3D_normalized_pts_fix_contour.npy'))
             if opt.use_delta_pts:
-                self.pts3d[i] = ori_pts3d - self.pts3d_mean
+                #self.pts3d[i] = ori_pts3d - self.pts3d_mean
+                self.pts3d[i] = ori_pts3d - self.pts3d_mean[i]
             else:
                 self.pts3d[i] = ori_pts3d
             if opt.feature_dtype == 'pts3d':
@@ -154,10 +138,10 @@ class AudioVisualDataset(BaseDataset):
                 self.feats[i] = sio.loadmat(track_data_path)['exps'].astype(np.float32)
             self.rot_angles[i] = fit_data['rot_angles'].astype(np.float32)
             # change -180~180 to 0~360
-            if not self.dataset_name == 'Yuxuan':
-                rot_change = self.rot_angles[i][:, 0] < 0
-                self.rot_angles[i][rot_change, 0] += 360
-                self.rot_angles[i][:, 0] -= 180   # change x axis direction
+            #if not self.dataset_name == 'Yuxuan':
+            #    rot_change = self.rot_angles[i][:, 0] < 0
+            #    self.rot_angles[i][rot_change, 0] += 360
+            #    self.rot_angles[i][:, 0] -= 180   # change x axis direction
             # use delta translation
             self.mean_trans[i] = fit_data['trans'][:, :, 0].astype(np.float32).mean(axis=0)
             self.trans[i] = fit_data['trans'][:, :, 0].astype(np.float32) - self.mean_trans[i]
@@ -169,7 +153,7 @@ class AudioVisualDataset(BaseDataset):
             if self.dataset_name == 'Yuxuan':
                 total_frames = self.feats[i].shape[0] - 300 - 130
             else:
-                total_frames = self.feats[i].shape[0] - 60
+                total_frames = self.feats[i].shape[0] - self.audioRF_history
 
             if need_deepfeats:
                 if self.opt.audio_encoder == 'APC':
@@ -183,12 +167,12 @@ class AudioVisualDataset(BaseDataset):
                                             self.opt.APC_rnn_layers,
                                             self.opt.APC_residual)
                     APC_model.load_state_dict(torch.load(self.opt.APC_model_path, map_location=str(self.device)), strict=False)
-#                    APC_model.load_state_dict(torch.load(self.opt.APC_model_path), strict=False)
+                    #APC_model.load_state_dict(torch.load(self.opt.APC_model_path), strict=False)
                     APC_model.cuda()
                     APC_model.eval()
                     with torch.no_grad():
                         length = torch.Tensor([mel_nframe])
-#                        hidden_reps = torch.zeros([mel_nframe, self.opt.APC_hidden_size]).cuda()
+                        #hidden_reps = torch.zeros([mel_nframe, self.opt.APC_hidden_size]).cuda()
                         mel80_torch = torch.from_numpy(mel80.astype(np.float32)).cuda().unsqueeze(0)
                         hidden_reps = APC_model.forward(mel80_torch, length)[0]   # [mel_nframe, 512]
                         hidden_reps = hidden_reps.cpu().numpy()
@@ -196,12 +180,35 @@ class AudioVisualDataset(BaseDataset):
                         self.audio_features[i] = hidden_reps
 
             valid_frames = total_frames - self.start_point[i]
-            self.len[i] = valid_frames - 400
+            self.len[i] = valid_frames
             if i == 0:
                 self.sample_start.append(0)
             else:
                 self.sample_start.append(self.sample_start[-1] + self.len[i-1] - 1)
             self.total_len += np.int32(np.floor(self.len[i] / self.frame_jump_stride))
+
+    def init_variables(self):
+        # main info
+        self.audio = [''] * self.clip_nums
+        self.audio_features = [''] * self.clip_nums
+        self.feats = [''] * self.clip_nums
+        self.exps = [''] * self.clip_nums
+        self.pts3d = [''] * self.clip_nums
+        self.rot_angles = [''] * self.clip_nums
+        self.trans = [''] * self.clip_nums
+        self.headposes = [''] * self.clip_nums
+        self.velocity_pose = [''] * self.clip_nums
+        self.acceleration_pose = [''] * self.clip_nums
+        self.mean_trans = [''] * self.clip_nums
+        if self.state == 'test':
+            self.landmarks = [''] * self.clip_nums
+        # meta info
+        self.start_point = [''] * self.clip_nums
+        self.end_point = [''] * self.clip_nums
+        self.len = [''] * self.clip_nums
+        self.sample_start = []
+        self.clip_valid = ['True'] * self.clip_nums
+        self.invalid_clip = []
 
     def __getitem__(self, index):
         # recover real index from compressed one
@@ -214,8 +221,12 @@ class AudioVisualDataset(BaseDataset):
         if self.task == 'Audio2Feature':
             # start point is current frame
             A2Lsamples = self.audio_features[file_index][current_frame * 2: (current_frame + self.seq_len) * 2]
-            target_pts3d = self.feats[file_index][current_frame: current_frame + self.seq_len, self.indices].reshape(self.seq_len, -1)
 
+            sample_num, feature_num, dim_num = self.feats[file_index].shape[:3]
+            target_pts3d = self.feats[file_index][current_frame: current_frame + self.seq_len, self.indices]
+            #target_pts3d = target_pts3d.reshape(self.seq_len, -1)
+            target_pts3d = target_pts3d.reshape(-1, len(self.indices)*dim_num)
+            
             A2Lsamples = torch.from_numpy(A2Lsamples).float()
             target_pts3d = torch.from_numpy(target_pts3d).float()
 

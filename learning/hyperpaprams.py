@@ -1,3 +1,10 @@
+from genericpath import exists
+from tqdm import tqdm
+import scipy.io as sio
+from funcs import utils
+import h5py
+import cv2
+import io
 import os
 from os.path import join
 from pathlib import Path
@@ -7,12 +14,6 @@ from PIL import Image
 import bisect
 import numpy as np
 np.set_printoptions(suppress=1)
-import io
-import cv2
-import h5py
-from funcs import utils
-import scipy.io as sio
-from tqdm import tqdm
 
 
 def load_change_paras(person_dir):
@@ -25,19 +26,60 @@ def load_change_paras(person_dir):
 
 
 def load_tracked_normalized_pts(person_dir):
+    mean_pts3d_name = 'mean_pts3d.npy'
+    mean_pts3d_path = join(person_dir, mean_pts3d_name)
+    mean_pts3d = np.load(mean_pts3d_path)
+    #mean_pts3d = pts_3d.mean(0)
+    np.save(mean_pts3d_path, mean_pts3d)
+
+    tracked3D_normalized_pts_fix_contour_name = 'tracked3D_normalized_pts_fix_contour.npy'
+    tracked3D_normalized_pts_fix_contour_path = join(person_dir, tracked3D_normalized_pts_fix_contour_name)
+    tracked3D_normalized_pts_fix_contour = np.load(tracked3D_normalized_pts_fix_contour_path)
+    #tracked3D_normalized_pts_fix_contour = pts_3d
+    np.save(tracked3D_normalized_pts_fix_contour_path, tracked3D_normalized_pts_fix_contour)
+
     racked2D_normalized_pts_fix_contour_name = 'tracked2D_normalized_pts_fix_contour.npy'
     racked2D_normalized_pts_fix_contour_path = join(person_dir, racked2D_normalized_pts_fix_contour_name)
     racked2D_normalized_pts_fix_contour = np.load(racked2D_normalized_pts_fix_contour_path)
     np.save(racked2D_normalized_pts_fix_contour_path, racked2D_normalized_pts_fix_contour)
 
-def load_3d_fit_data(person_dir):
+
+def normalize(data, idxes, im_size, size, size_z, zero_center, per_channel):
+    #idxes = [0,1,2]
+    if per_channel:
+        for idx in idxes:
+            #data[:, :, idx] = (data[:, :, idx] - data[:, :, idx].min()) / (data[:, :, idx].max() - data[:, :, idx].min())
+            data[:, :, idx] = data[:, :, idx] / im_size[idx]
+
+            if zero_center:
+                data[:, :, idx] = 2.0 * (data[:, :, idx] - 0.5)
+                #data[:, :, idx] = 0.75 * data[:, :, idx]
+            if idx != 2:
+                data[:, :, idx] = size * data[:, :, idx]
+            else:
+                data[:, :, idx] = size_z * data[:, :, idx]
+    else:
+        data = (data - data.min()) / (data.max() - data.min())
+        if zero_center:
+            data = 2.0 * (data - 0.5)
+            data = 0.75 * data
+        data = size * data
+    return data
+
+
+def load_3d_fit_data_and_normalize(person_dir):
     fit_data_3d_name = '3d_fit_data.npz'
     fit_data_3d_path = join(person_dir, fit_data_3d_name)
     fit_data_3d = np.load(fit_data_3d_path)
-    pts_3d = fit_data_3d['pts_3d']
 
-    #idxes = [0,1,2]
-    #for idx in idxes:
+    #pts_3d = fit_data_3d['pts_3d']
+
+    #idxes = [0, 1, 2]
+    #pts_3d = normalize(pts_3d, idxes, im_size=(1080, 1440), size=1.0, size_z=0.55, zero_center=1, per_channel=1)
+    #pts_3d[:, :, 0] = -pts_3d[:, :, 0]
+    #pts_3d[:, :, 1] = -pts_3d[:, :, 1]
+
+    # for idx in idxes:
     #    pts_3d[:, :, idx] = (pts_3d[:, :, idx] - pts_3d[:, :, idx].min()) / (pts_3d[:, :, idx].max() - pts_3d[:, :, idx].min())
     #    pts_3d[:, :, idx] = 2.0 * (pts_3d[:, :, idx] - 0.5)
     #    pts_3d[:, :, idx] = 0.75 * pts_3d[:, :, idx]
@@ -54,21 +96,45 @@ def load_3d_fit_data(person_dir):
     #tracked3D_normalized_pts_fix_contour = pts_3d
     #np.save(tracked3D_normalized_pts_fix_contour_path, tracked3D_normalized_pts_fix_contour)
 
-    rot_angles = fit_data_3d['rot_angles']
-    trans = fit_data_3d['trans']
-    np.savez(fit_data_3d_path, pts_3d=pts_3d, rot_angles=rot_angles, trans=trans)
+    #racked2D_normalized_pts_fix_contour_name = 'tracked2D_normalized_pts_fix_contour.npy'
+    #racked2D_normalized_pts_fix_contour_path = join(person_dir, racked2D_normalized_pts_fix_contour_name)
+    #racked2D_normalized_pts_fix_contour = np.load(racked2D_normalized_pts_fix_contour_path)
+    #idxes = [0,1]
+    #racked2D_normalized_pts_fix_contour = normalize(racked2D_normalized_pts_fix_contour,idxes, 512, zero_center=0, per_channel=0)
+    #np.save(racked2D_normalized_pts_fix_contour_path, racked2D_normalized_pts_fix_contour)
+
+    #rot_angles = fit_data_3d['rot_angles']
+    #mean_rot_angle = np.array([185.87375, -2.4958076, 1.2802227], dtype=np.float64)
+    #for i_rot_angle in range(rot_angles.shape[0]):
+    #    rot_angles[i_rot_angle] = mean_rot_angle
+    #trans = fit_data_3d['trans']
+    #mean_tran = np.array([-4.499857, 11.183616, 913.1682], dtype=np.float64)
+    #for i_tran in range(trans.shape[0]):
+    #    trans[i_tran] = mean_tran[:, None]
+
+    #np.savez(fit_data_3d_path, pts_3d=pts_3d, rot_angles=rot_angles, trans=trans)
+
     show_3d_fit_data(person_dir, fit_data_3d)
 
 
 def show_3d_fit_data(person_dir, fit_data_3d):
     camera, camera_intrinsic, scale = load_camera_info(person_dir)
+
     pts_3d = fit_data_3d['pts_3d']
     rot_angles = fit_data_3d['rot_angles']
     trans = fit_data_3d['trans']
     nframe = len(fit_data_3d['pts_3d'])
 
+    file_names = os.listdir(person_dir)
+
     interactive_mode = 1
     for i_nframe in tqdm(range(nframe)):
+        im_path = join(person_dir, f'{i_nframe}.jpg')
+        if os.path.exists(im_path):
+            im = cv2.imread(im_path)
+            im = cv2.resize(im, (512, 512))
+            utils.show_image(im, points=None, wait=1, name='im', channel_reverse=0)
+
         pt_3d = pts_3d[i_nframe]
         rot_angle = rot_angles[i_nframe]
         rot = utils.angle2matrix(rot_angle)
@@ -81,11 +147,13 @@ def show_3d_fit_data(person_dir, fit_data_3d):
 
         rot_show = utils.angle2matrix(np.array([90, 0, 0]))
         pt_3d_show = rot_show.dot(pt_3d.T).T
+        #pt_3d_show = pt_3d
         if utils.first_time:
             utils.show_pointcloud(pt_3d_show, use_pytorch3d=0, use_plt_loop=1, block=None, use_interactive_mode=1)
         else:
             utils.verts_loop = pt_3d_show
 
+        #canvas = np.zeros((1024, 1024, 3))
         canvas = np.zeros((512, 512, 3))
         utils.show_image(canvas, points=pts2d_project, wait=1)
         del canvas
@@ -102,20 +170,22 @@ def load_clip_h5_file(person_dir):
     elif state == 'test':
         clip_names = ['clip_0']
 
-    im_dir = join(dataset_root, r"src\frames")
-    im_names = os.listdir(im_dir)
-    im_paths = []
-    for im_name in im_names:
-        im_path = join(im_dir, im_name)
-        im_paths.append(im_path)
-    clip_nums = len(clip_names)
     for clip_name in clip_names:
-        clip_root = os.path.join(dataset_root, state)
+        im_dir = join(dataset_root, clip_name)
+        im_names = os.listdir(im_dir)
+        im_paths = []
+        for im_name in im_names:
+            if im_name.endswith('.jpg'):
+                im_path = join(im_dir, im_name)
+                im_paths.append(im_path)
+
+        clip_root = os.path.join(dataset_root, clip_name)
         img_file_path = os.path.join(clip_root, clip_name + '.h5')
         f = h5py.File(img_file_path, "w")
         dset = f.create_dataset(clip_name, data=im_paths)
 
         img_file = h5py.File(img_file_path, 'r')[clip_name]
+        continue
         for im_path in img_file:
 
             #byteImgIO = io.BytesIO()
@@ -149,8 +219,9 @@ def load_APC_feature(person_dir):
 
 
 if __name__ == '__main__':
+    #person_dir = r"E:\Topic\ExpressionTransmission\LiveSpeechPortraits\data\Vic"
     person_dir = r"E:\Topic\ExpressionTransmission\LiveSpeechPortraits\data\Vic\clip_3"
     #load_clip_h5_file(person_dir)
-    load_3d_fit_data(person_dir)
-    #load_tracked_normalized_pts(person_dir)
+    load_3d_fit_data_and_normalize(person_dir)
+    # load_tracked_normalized_pts(person_dir)
     pass

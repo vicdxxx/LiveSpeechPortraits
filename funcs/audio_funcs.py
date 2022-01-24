@@ -58,14 +58,7 @@ class Audio2Mel(torch.nn.Module):
     def forward(self, audio, normalize=True):
         p = (self.n_fft - self.hop_length) // 2
         audio = F.pad(audio, (p, p), "reflect").squeeze(1)
-        fft = torch.stft(
-            audio,
-            n_fft=self.n_fft,
-            hop_length=self.hop_length,
-            win_length=self.win_length,
-            window=self.window,
-            center=False,
-        )
+        fft = torch.stft(audio, n_fft=self.n_fft, hop_length=self.hop_length, win_length=self.win_length, window=self.window, center=False)
         real_part, imag_part = fft.unbind(-1)
         magnitude = torch.sqrt(real_part ** 2 + imag_part ** 2)
         mel_output = torch.matmul(self.mel_basis, magnitude)
@@ -74,7 +67,8 @@ class Audio2Mel(torch.nn.Module):
         # normalize to the range [0,1]
         if normalize:
             log_mel_spec = (log_mel_spec - self.min_mel) / -self.min_mel
-        return log_mel_spec
+        #return log_mel_spec[:, :, 0]
+        return log_mel_spec[:, :, 0]
 
     def mel_to_audio(self, mel):
         mel = torch.exp(mel * (-self.min_mel) + self.min_mel) ** 2

@@ -1,11 +1,14 @@
 import os
 #os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "'max_split_size_mb':500"
 #set PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:128
+import numpy as np
+np.set_printoptions(suppress=1)
 import subprocess
 from os.path import join
 from tqdm import tqdm
 import numpy as np
 import torch
+torch.set_printoptions(sci_mode=0)
 from collections import OrderedDict
 import librosa
 from skimage.io import imread
@@ -59,7 +62,7 @@ if __name__ == '__main__':
     if cfg.DEBUG:
         #--save_intermediates 1
         #python demo.py --id Vic --driving_audio ./data/Input/vic.mp3 --device cuda
-        args_raw = '--id Vic --driving_audio ./data/Input/vic.mp3 --device cuda'
+        args_raw = '--id Vic --driving_audio ./data/Vic/clip_0/clip_0.mp3 --device cuda'
         args_raw = args_raw.split(' ')
         args = []
         for x in args_raw:
@@ -212,7 +215,7 @@ if __name__ == '__main__':
     print('5. Post-processing...')
     nframe = min(pred_Feat.shape[0], pred_Head.shape[0])
     pred_pts3d = np.zeros([nframe, cfg.face_landmark_num, 3])
-    pred_pts3d[:, mouth_indices] = pred_Feat.reshape(-1, 25, 3)[:nframe]
+    pred_pts3d[:, mouth_indices] = pred_Feat.reshape(-1, cfg.mouth_feature_num, 3)[:nframe]
 
     # mouth
     pred_pts3d = utils.landmark_smooth_3d(pred_pts3d, Feat_smooth_sigma, area='only_mouth')

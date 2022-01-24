@@ -283,8 +283,10 @@ class FaceDataset(BaseDataset):
         num = int(shoulder_points.shape[0] / 2)
         for i in range(2):
             for j in range(num - 1):
-                img = cv2.line(img, tuple(shoulder_points[i * num + j]), tuple(shoulder_points[i * num + j + 1]), 255, 2)  # BGR
-
+                #img = cv2.line(img, tuple(shoulder_points[i * num + j]), tuple(shoulder_points[i * num + j + 1]), 255, 2)  # BGR
+                pt1 = [int(flt) for flt in shoulder_points[i * num + j]]
+                pt2 = [int(flt) for flt in shoulder_points[i * num + j + 1]]
+                img = cv2.line(img, tuple(pt1), tuple(pt2), 255, 2)  # BGR
         return img
 
     def draw_face_feature_maps(self, keypoints, size=(512, 512)):
@@ -294,8 +296,10 @@ class FaceDataset(BaseDataset):
         for edge_list in self.part_list:
             for edge in edge_list:
                 for i in range(len(edge)-1):
-                    im_edges = cv2.line(im_edges, tuple(keypoints[edge[i]]), tuple(keypoints[edge[i+1]]), 255, 2)
-
+                    #im_edges = cv2.line(im_edges, tuple(keypoints[edge[i]]), tuple(keypoints[edge[i+1]]), 255, 2)
+                    pt1 = [int(flt) for flt in keypoints[edge[i]]]
+                    pt2 = [int(flt) for flt in keypoints[edge[i + 1]]]
+                    im_edges = cv2.line(im_edges, tuple(pt1), tuple(pt2), 255, 2)
         return im_edges
 
     def get_crop_coords(self, keypoints, size, dataset_name, random_trans_scale=50):

@@ -1,25 +1,30 @@
 ----------------- Options ---------------
-             A2L_GMM_ndim: 75                            
+          A2L_GMM_ncenter: 3                             
+             A2L_GMM_ndim: 60                            
+      A2L_receptive_field: 100                           
         APC_frame_history: 0                             
           APC_hidden_size: 512                           
+           APC_model_path: ./data/APC_epoch_160.model    
              APC_residual: False                         
            APC_rnn_layers: 3                             
-                      FPS: 60                            	[default: 60]
+                      FPS: 22.0                          
              LSTM_dropout: 0                             
          LSTM_hidden_size: 256                           
               LSTM_layers: 3                             
          LSTM_output_size: 80                            
             LSTM_residual: False                         
-     LSTM_sequence_length: 60                            
+     LSTM_sequence_length: 22.0                          
            audioRF_future: 0                             
-          audioRF_history: 60                            
+          audioRF_history: 60                            	[default: 22.0]
             audio_encoder: APC                           
+audiofeature_input_channels: 80                            
                batch_size: 32                            
           checkpoints_dir: ./checkpoints/                
            continue_train: False                         
                  dataroot: ./data                        	[default: default_path]
              dataset_mode: audiovisual                   
-            dataset_names: common_voice                  	[default: default_name]
+            dataset_names: Vic                           	[default: default_name]
+             dataset_type: train                         
               epoch_count: 0                             
           feature_decoder: LSTM                          
             feature_dtype: pts3d                         
@@ -51,11 +56,12 @@
              re_transform: 0                             
               sample_rate: 16000                         
              save_by_iter: True                          	[default: False]
-          save_epoch_freq: 5                             
-          sequence_length: 240                           
+          save_epoch_freq: 10                            	[default: 5]
+          sequence_length: 90                            
            serial_batches: True                          	[default: False]
                    suffix: vic                           	[default: ]
                      task: Audio2Feature                 
+        time_frame_length: 90                            
       train_dataset_names: train_list.txt                
             use_delta_pts: 1                             
    validate_dataset_names: val_list.txt                  

@@ -56,14 +56,14 @@ class camera(object):
         self.cy = scale * self.cy + transform_matrix[1, 2]
 
 
-def compute_mel_one_sequence(audio, hop_length=int(16000/120), winlen=1/60, winstep=0.5/60, sr=16000, fps=60, device='cpu'):
+def compute_mel_one_sequence(audio, hop_length=int(16000/(cfg.FPS*2)), winlen=1/cfg.FPS, winstep=0.5/cfg.FPS, sr=cfg.sr, fps=cfg.FPS, device='cpu'):
     ''' compute mel for an audio sequence.
     '''
     device = torch.device(device)
-    Audio2Mel_torch = audio_funcs.Audio2Mel(n_fft=512, hop_length=int(16000/120), win_length=int(16000/60), sampling_rate=16000,
+    Audio2Mel_torch = audio_funcs.Audio2Mel(n_fft=cfg.n_fft, hop_length=int(cfg.sr/(cfg.FPS*2)), win_length=int(cfg.sr/cfg.FPS), sampling_rate=cfg.sr,
                                             n_mel_channels=80, mel_fmin=90, mel_fmax=7600.0).to(device)
 
-    nframe = int(audio.shape[0] / 16000 * 60)
+    nframe = int(audio.shape[0] / cfg.sr * cfg.FPS)
     mel_nframe = 2 * nframe
     mel_frame_len = int(sr * winlen)
     mel_frame_step = sr * winstep
@@ -231,6 +231,16 @@ def project_landmarks(camera_intrinsic, viewpoint_R, viewpoint_T, scale, headpos
     pts2d_project = pts2d_project[:2, :].T
 
     return pts2d_project, rot, trans
+
+
+def project_landmarks_orthogonal(camera_intrinsic, viewpoint_R, viewpoint_T, scale, headposes, pts_3d):
+    ''' project 2d landmarks given predicted 3d landmarks & headposes and user-defined
+    camera & viewpoint parameters
+    '''
+    pts2d_project = pts_3d[:, :, :2] * 512
+    pts2d_project[:, :, 0] *= cfg.h
+    pts2d_project[:, :, 1] *= cfg.w
+    return pts2d_project, None, None
 
 
 def landmark_smooth_3d(pts3d, smooth_sigma=0, area='only_mouth'):

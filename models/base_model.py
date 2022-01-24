@@ -28,7 +28,8 @@ class BaseModel(ABC):
             -- self.loss_names (str list):          specify the training losses that you want to plot and save.
             -- self.model_names (str list):         define networks used in our training.
             -- self.visual_names (str list):        specify the images that you want to display and save.
-            -- self.optimizers (optimizer list):    define and initialize optimizers. You can define one optimizer for each network. If two networks are updated at the same time, you can use itertools.chain to group them. See cycle_gan_model.py for an example.
+            -- self.optimizers (optimizer list):    define and initialize optimizers. You can define one optimizer for each network.
+                If two networks are updated at the same time, you can use itertools.chain to group them. See cycle_gan_model.py for an example.
         """
         self.opt = opt
         self.gpu_ids = opt.gpu_ids
@@ -39,8 +40,8 @@ class BaseModel(ABC):
         #     self.gpu_ids = opt.gpu_ids == []
         # else:
         #     self.device = torch.device('cuda:{}'.format(self.gpu_ids[0]))
-        self.device = torch.device('cuda:{}'.format(self.gpu_ids[0])) if len(self.gpu_ids) > 0 else torch.device('cpu')  
-        
+        self.device = torch.device('cuda:{}'.format(self.gpu_ids[0])) if len(self.gpu_ids) > 0 else torch.device('cpu')
+
         self.save_dir = os.path.join(opt.checkpoints_dir, opt.name)  # save all the checkpoints to save_dir
         # torch speed up training
         torch.backends.cudnn.enabled = True
@@ -96,7 +97,6 @@ class BaseModel(ABC):
             self.load_networks(opt.load_epoch)
         self.print_networks(opt.verbose)
 
-    
     def train(self):
         """Make models train mode during train time"""
         for name in self.model_names:
@@ -104,14 +104,12 @@ class BaseModel(ABC):
                 net = getattr(self, name)
                 net.train(mode=True)
 
-
     def eval(self):
         """Make models eval mode during test time"""
         for name in self.model_names:
             if isinstance(name, str):
                 net = getattr(self, name)
                 net.eval()
-                
 
     def test(self):
         """Forward function used in test time.
@@ -166,7 +164,7 @@ class BaseModel(ABC):
         """
         for name in self.model_names:
             if isinstance(name, str):
-                save_filename = '%s_%s.pkl' % (epoch, name)
+                save_filename = '%s_%s.pkl' % (name, epoch)
                 save_path = os.path.join(self.save_dir, save_filename)
                 net = getattr(self, name)
                 torch.save(net.state_dict(), save_path)
@@ -174,7 +172,6 @@ class BaseModel(ABC):
             epoch, epoch_iter = train_info
             iter_path = os.path.join(self.save_dir, 'iter.txt')
             np.savetxt(iter_path, (epoch, epoch_iter), delimiter=',', fmt='%d')
-
 
     def __patch_instance_norm_state_dict(self, state_dict, module, keys, i=0):
         """Fix InstanceNorm checkpoints incompatibility (prior to 0.4)"""
@@ -196,8 +193,7 @@ class BaseModel(ABC):
         Parameters:
             epoch (int) -- current epoch; used in the file name '%s_net_%s.pth' % (epoch, name)
         """
-        
-            
+
         for name in self.model_names:
             if isinstance(name, str):
                 if epoch[-3:] == 'pkl':
@@ -219,26 +215,23 @@ class BaseModel(ABC):
                     net.load_state_dict(state_dict, strict=False)
                 else:
                     print('No model weight file:', load_path, 'initialize model without pre-trained weights.')
-                    if self.isTrain == False:
+                    if self.isTrain is False:
                         raise ValueError('We are now in inference process, no pre-trained model found! Check the model checkpoint!')
-                        
-                    
-#                if isinstance(net, torch.nn.DataParallel):
-#                    net = net.module
-                
-                # if you are using PyTorch newer than 0.4 (e.g., built from
-                # GitHub source), you can remove str() on self.device
-                
-#                state_dict = torch.load(load_path, map_location=str(self.device))
-#                if hasattr(state_dict, '_metadata'):
-#                    del state_dict._metadata
-#
-#                # patch InstanceNorm checkpoints prior to 0.4
-#                for key in list(state_dict.keys()):  # need to copy keys here because we mutate in loop
-#                    self.__patch_instance_norm_state_dict(state_dict, net, key.split('.'))
-#                net.load_state_dict(state_dict)
-                
-                
+
+                    #if isinstance(net, torch.nn.DataParallel):
+                    #    net = net.module
+
+                    # if you are using PyTorch newer than 0.4 (e.g., built from
+                    # GitHub source), you can remove str() on self.device
+
+                    #state_dict = torch.load(load_path, map_location=str(self.device))
+                    #if hasattr(state_dict, '_metadata'):
+                    #    del state_dict._metadata
+
+                    ## patch InstanceNorm checkpoints prior to 0.4
+                    #for key in list(state_dict.keys()):  # need to copy keys here because we mutate in loop
+                    #    self.__patch_instance_norm_state_dict(state_dict, net, key.split('.'))
+                    #net.load_state_dict(state_dict)
 
     def print_networks(self, verbose):
         """Print the total number of parameters in the network and (if verbose) network architecture

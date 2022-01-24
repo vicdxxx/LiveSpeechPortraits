@@ -65,10 +65,9 @@ class Predictor(cog.Predictor):
         data_root = join('data', opt.id)
 
         ############################ Hyper Parameters #############################
-        h, w, sr, FPS = 512, 512, 16000, 60
-        mouth_indices = np.concatenate([np.arange(4, 11), np.arange(46, 64)])
-        eye_brow_indices = [27, 65, 28, 68, 29, 67, 30, 66, 31, 72, 32, 69, 33, 70, 34, 71]
-        eye_brow_indices = np.array(eye_brow_indices, np.int32)
+        h, w, sr, FPS = cfg.h, cfg.w, cfg.sr, cfg.FPS
+        mouth_indices = cfg.mouth_indices
+        eye_brow_indices = cfg.eye_brow_indices
 
         ############################ Pre-defined Data #############################
         mean_pts3d = np.load(join(data_root, 'mean_pts3d.npy'))
@@ -212,7 +211,7 @@ class Predictor(cog.Predictor):
         print('5. Post-processing...')
         nframe = min(pred_Feat.shape[0], pred_Head.shape[0])
         pred_pts3d = np.zeros([nframe, cfg.face_landmark_num, 3])
-        pred_pts3d[:, mouth_indices] = pred_Feat.reshape(-1, 25, 3)[:nframe]
+        pred_pts3d[:, mouth_indices] = pred_Feat.reshape(-1, cfg.mouth_feature_num, 3)[:nframe]
 
         ## mouth
         pred_pts3d = utils.landmark_smooth_3d(pred_pts3d, Feat_smooth_sigma, area='only_mouth')

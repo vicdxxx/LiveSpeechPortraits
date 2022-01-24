@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{87000fdb-e678-453c-9779-7ee42066a126}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>learning\hyperpaprams.py</StartupFile>
+    <StartupFile>learning\train_audio2feature.py</StartupFile>
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
