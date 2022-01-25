@@ -4,7 +4,7 @@ from util import util
 import torch
 import models
 import numpy as np
-
+import config as cfg
 
 class BaseOptions():
     """This class defines options used during both training and test time.
@@ -49,20 +49,22 @@ class BaseOptions():
                                 If the dataset directory contains more than max_dataset_size, only a subset is loaded.')
         parser.add_argument('--audio_encoder', type=str, default='APC', help='|CNN|LSTM|APC|')
         parser.add_argument('--audiofeature_input_channels', type=int, default=80, help='input channels of audio features')
-        parser.add_argument('--frame_future', type=int, default=15)
+        parser.add_argument('--frame_future', type=int, default=cfg.frame_future)
         parser.add_argument('--predict_length', type=int, default=5)
         parser.add_argument('--audio_windows', type=int, default=2)
-        parser.add_argument('--time_frame_length', type=int, default=240, help='length of training frames in each iteration')
-        parser.add_argument('--A2H_receptive_field', type=int, default=255, help='length of training frames in each iteration')
+
+        parser.add_argument('--time_frame_length', type=int, default=cfg.time_frame_length, help='length of training frames in each iteration')
+        parser.add_argument('--A2H_receptive_field', type=int, default=cfg.A2H_receptive_field, help='length of training frames in each iteration')
+        parser.add_argument('--sequence_length', type=int, default=cfg.sequence_length, help='length of training frames in each iteration')
 
         parser.add_argument('--APC_model_path', type=str, default='./data/APC_epoch_160.model')
         parser.add_argument('--dataset_type', type=str, default='train')
 
         # APC parameters
-        parser.add_argument('--APC_hidden_size', type=int, default=512)
+        parser.add_argument('--APC_hidden_size', type=int, default=cfg.net_hidden_size)
         parser.add_argument('--APC_rnn_layers', type=int, default=3)
         parser.add_argument("--APC_residual", action="store_true")
-        parser.add_argument('--APC_frame_history', type=int, default=60)
+        parser.add_argument('--APC_frame_history', type=int, default=int(cfg.FPS))
 
         # network parameters
         # audio2headpose wavenet
@@ -74,7 +76,7 @@ class BaseOptions():
         parser.add_argument('--A2H_wavenet_kernel_size', type=int, default=2, help='dilation convolution kernel size')
         parser.add_argument('--A2H_wavenet_use_bias', type=bool, default=True, help='whether to use bias in dilation convolution')
         parser.add_argument('--A2H_wavenet_cond', type=bool, default=True, help='whether use condition input')
-        parser.add_argument('--A2H_wavenet_cond_channels', type=int, default=512, help='whether use condition input')
+        parser.add_argument('--A2H_wavenet_cond_channels', type=int, default=cfg.net_hidden_size, help='whether use condition input')
         parser.add_argument('--A2H_wavenet_input_channels', type=int, default=12, help='input channels')
         parser.add_argument('--A2H_GMM_ncenter', type=int, default=1, help='gaussian distribution numbers, 1 for single gaussian distribution')
         parser.add_argument('--A2H_GMM_ndim', type=int, default=12, help='dimension of each gaussian, usually number of pts')
@@ -83,7 +85,6 @@ class BaseOptions():
         # additional parameters
         parser.add_argument('--verbose', action='store_true', help='if specified, print more debugging information')
         parser.add_argument('--suffix', default='', type=str, help='customized suffix: opt.name = opt.name + suffix: e.g., {model}_{netG}_size{load_size}')
-        parser.add_argument('--sequence_length', type=int, default=240, help='length of training frames in each iteration')
 
         self.initialized = True
         return parser

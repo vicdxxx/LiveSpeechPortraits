@@ -11,7 +11,23 @@ from tqdm import tqdm
 from datasets.face_dataset import FaceDataset
 from datasets.audiovisual_dataset import AudioVisualDataset
 import torch
-from learning.util import save_model
+from os.path import join
+import numpy as np
+
+
+person_dir = r"E:\Topic\ExpressionTransmission\LiveSpeechPortraits\data\Vic\clip_3"
+fit_data_3d_name = '3d_fit_data.npz'
+fit_data_3d_path = join(person_dir, fit_data_3d_name)
+fit_data_3d = np.load(fit_data_3d_path)
+rot_angles = fit_data_3d['rot_angles']
+mean_rot_angle = np.array([185.87375, -2.4958076, 1.2802227], dtype=np.float64)
+for i_rot_angle in range(rot_angles.shape[0]):
+    rot_angles[i_rot_angle] = mean_rot_angle
+trans = fit_data_3d['trans']
+mean_tran = np.array([-4.499857, 11.183616, 913.1682], dtype=np.float64)
+for i_tran in range(trans.shape[0]):
+    trans[i_tran] = mean_tran[:, None]
+
 
 def train():
     parser = argparse.ArgumentParser()

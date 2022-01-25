@@ -15,6 +15,8 @@ import bisect
 import numpy as np
 np.set_printoptions(suppress=1)
 
+camera_dir = r"E:\Topic\ExpressionTransmission\LiveSpeechPortraits\data\Vic"
+
 
 def load_change_paras(person_dir):
     change_paras_name = 'change_paras.npz'
@@ -118,7 +120,7 @@ def load_3d_fit_data_and_normalize(person_dir):
 
 
 def show_3d_fit_data(person_dir, fit_data_3d):
-    camera, camera_intrinsic, scale = load_camera_info(person_dir)
+    camera, camera_intrinsic, scale = load_camera_info(camera_dir)
 
     pts_3d = fit_data_3d['pts_3d']
     rot_angles = fit_data_3d['rot_angles']
@@ -202,10 +204,10 @@ def load_clip_h5_file(person_dir):
             pass
 
 
-def load_camera_info(person_dir):
+def load_camera_info(camera_dir):
     camera = utils.camera()
-    camera_intrinsic = np.load(join(person_dir, 'camera_intrinsic.npy')).astype(np.float32)
-    scale = sio.loadmat(join(person_dir, 'id_scale.mat'))['scale'][0, 0]
+    camera_intrinsic = np.load(join(camera_dir, 'camera_intrinsic.npy')).astype(np.float32)
+    scale = sio.loadmat(join(camera_dir, 'id_scale.mat'))['scale'][0, 0]
     return camera, camera_intrinsic, scale
 
 

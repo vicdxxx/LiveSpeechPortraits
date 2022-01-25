@@ -132,7 +132,7 @@ class Audio2HeadposeModel(BaseModel):
         '''
 
         frame_future = opt.frame_future
-        audio_feats = audio_feats.reshape(-1, 512 * 2)
+        audio_feats = audio_feats.reshape(-1, cfg.audio_feature_size * 2)
         nframe = audio_feats.shape[0] - frame_future
         pred_headpose = np.zeros([nframe, opt.A2H_GMM_ndim])
 

@@ -8,19 +8,26 @@ if sys_name != "Windows":
 # official / Vic
 DATASET_NAME = 'Vic'
 
+target_image_size = (512, 512)
+net_hidden_size = 512
+audio_feature_size = 512
+
 if DATASET_NAME == 'official':
     # official setting
     # use 73 face landmarks
+    origin_image_size = (1920, 1080)
     sequence_length = 240
     time_frame_length = 240
     A2L_receptive_field = 255
+    A2H_receptive_field = 255
+    frame_future = 18
 
     n_fft = 512
     audio_extension = '.wav'
     face_landmark_num = 73
     shoulder_landmark_num = 18
     mouth_feature_num = 25
-    h, w, sr, FPS = 512, 512, 16000, 60
+    sr, FPS = 16000, 60
     mouth_indices = np.concatenate([np.arange(4, 11), np.arange(46, 64)])
     A2L_GMM_ndim = len(mouth_indices)*3
 
@@ -50,9 +57,12 @@ if DATASET_NAME == 'official':
 elif DATASET_NAME == 'Vic':
     # new setting
     # use 68 face landmarks
+    origin_image_size = (1080, 1440)
     sequence_length = 90
     time_frame_length = 90
     A2L_receptive_field = 100
+    A2H_receptive_field = 100
+    frame_future = 7
 
     A2L_GMM_ndim = 20*3
     n_fft = 1024
@@ -60,7 +70,7 @@ elif DATASET_NAME == 'Vic':
     face_landmark_num = 68
     shoulder_landmark_num = 0
     mouth_feature_num = 20
-    h, w, sr, FPS = 512, 512, 16000, 22.0
+    sr, FPS = 16000, 22
     mouth_indices = np.concatenate([np.arange(48, 60), np.arange(60, 68)])
     A2L_GMM_ndim = len(mouth_indices)*3
 

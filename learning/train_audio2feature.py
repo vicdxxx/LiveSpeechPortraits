@@ -58,7 +58,7 @@ def generate_APC_feature(opt, config, data_root):
         with torch.no_grad():
             length = torch.Tensor([mel_nframe])
             mel80_torch = torch.from_numpy(mel80.astype(np.float32)).to(device).unsqueeze(0)
-            hidden_reps = APC_model.forward(mel80_torch, length)[0]   # [mel_nframe, 512]
+            hidden_reps = APC_model.forward(mel80_torch, length)[0]   # [mel_nframe, cfg.audio_feature_size]
             hidden_reps = hidden_reps.cpu().numpy()
         audio_feats = hidden_reps
 
@@ -75,12 +75,12 @@ def train():
     # --continue_train --load_epoch 0 --epoch_count 0
     #  --sequence_length 240 --time_frame_length 240 --A2L_receptive_field 255
     #  --FPS 22 --sample_rate 16000
-    args_raw = '--task Audio2Feature --model audio2feature --dataset_mode audiovisual --name Audio2Feature --gpu_ids 0 \
+    args_raw = f'--task Audio2Feature --model audio2feature --dataset_mode audiovisual --name Audio2Feature --gpu_ids 0 \
         --dataset_names Vic --dataroot ./data \
         --frame_jump_stride 4 --num_threads 0 --batch_size 32 --serial_batches \
         --audio_encoder APC --feature_decoder LSTM --loss L2 \
         --dataset_type train \
-        --audioRF_history 60 --audioRF_future 0 --feature_dtype pts3d --ispts_norm 1 --use_delta_pts 1 --frame_future 18 \
+        --audioRF_history {cfg.FPS} --audioRF_future 0 --feature_dtype pts3d --ispts_norm 1 --use_delta_pts 1 --frame_future {cfg.frame_future} \
         --predict_length 1 --only_mouth 1 --verbose --suffix vic \
         --save_epoch_freq 10 --save_by_iter --phase train --re_transform 0 \
         --train_dataset_names train_list.txt --validate_dataset_names val_list.txt \
@@ -103,7 +103,7 @@ def train():
                             pin_memory=True,
                             drop_last=True)
     val_opt = copy.deepcopy(opt)
-    opt.dataset_type = 'val'
+    val_opt.dataset_type = 'val'
     val_dataset = AudioVisualDataset(opt)
     val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False,
                                 num_workers=0,
@@ -140,13 +140,13 @@ def train():
                 iter_cnt += 1
                 #model.set_input(data=[A2Hsamples[None, :], target_info[None, :]])
                 model.set_input(data=batch)
-                model.forward()
-                model.backward()
+                model.optimize_parameters()
             except Exception as e:
                 #print(f'exception: {e}')
                 print(f'iter_cnt: {iter_cnt}, loss: {model.loss}')
                 break
-        if i_epoch % opt.save_epoch_freq == 0:
+        runned_epoch = i_epoch + 1
+        if runned_epoch % opt.save_epoch_freq == 0:
             val_iter = iter(val_dataloader)
             while 1:
                 try:
@@ -158,7 +158,7 @@ def train():
                     #print(f'exception: {e}')
                     break
             # save mode
-            model.save_networks(i_epoch)
+            model.save_networks(runned_epoch)
 
 
 def main():

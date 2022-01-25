@@ -79,7 +79,7 @@ class FaceDataset(BaseDataset):
                 # if need padding
                 x_min, x_max, y_min, y_max, self.image_pad[i] = max(x_min, 0), min(x_max, w), max(y_min, 0), min(y_max, h), None
 
-                if x_min == 0 or x_max == 512 or y_min == 0 or y_max == 512:
+                if x_min == 0 or x_max == cfg.target_image_size[0] or y_min == 0 or y_max == cfg.target_image_size[1]:
                     top, bottom, left, right = abs(yc-256-y_min), abs(yc+256-y_max), abs(xc-256-x_min), abs(xc+256-x_max)
                     self.image_pad[i] = [top, bottom, left, right]
                 self.image_transforms[i] = A.Compose([
@@ -125,10 +125,10 @@ class FaceDataset(BaseDataset):
                 fit_data = np.load(fit_data_path)
                 rot_angles = fit_data['rot_angles'].astype(np.float32)
                 # change -180~180 to 0~360
-                if not self.dataset_name == 'Yuxuan':
-                    rot_change = rot_angles[:, 0] < 0
-                    rot_angles[rot_change, 0] += 360
-                    rot_angles[:, 0] -= 180   # change x axis direction
+                #if not self.dataset_name == 'Yuxuan':
+                #    rot_change = rot_angles[:, 0] < 0
+                #    rot_angles[rot_change, 0] += 360
+                #    rot_angles[:, 0] -= 180   # change x axis direction
                 # use delta translation
                 mean_trans = fit_data['trans'][:, :, 0].astype(np.float32).mean(axis=0)
                 trans = fit_data['trans'][:, :, 0].astype(np.float32) - mean_trans
@@ -136,12 +136,12 @@ class FaceDataset(BaseDataset):
                 self.headposes[i] = np.concatenate([rot_angles, trans], axis=1)
 
                 # shoulders
-                shoulder_path = os.path.join(clip_root, 'normalized_shoulder_points.npy')
-                self.shoulders[i] = np.load(shoulder_path)
-                shoulder3D_path = os.path.join(clip_root, 'shoulder_points3D.npy')
-                self.shoulder3D[i] = np.load(shoulder3D_path)
+                #shoulder_path = os.path.join(clip_root, 'normalized_shoulder_points.npy')
+                #self.shoulders[i] = np.load(shoulder_path)
+                #shoulder3D_path = os.path.join(clip_root, 'shoulder_points3D.npy')
+                #self.shoulder3D[i] = np.load(shoulder3D_path)
 
-                self.sample_len[i] = np.int32(np.floor((self.landmarks2D[i].shape[0] - 60) / self.opt.frame_jump) + 1)
+                self.sample_len[i] = np.int32(np.floor((self.landmarks2D[i].shape[0] - cfg.FPS) / self.opt.frame_jump) + 1)
                 self.len[i] = self.landmarks2D[i].shape[0]
                 if i == 0:
                     self.sample_start.append(0)
@@ -159,7 +159,7 @@ class FaceDataset(BaseDataset):
             x_min, x_max, y_min, y_max = xc-256, xc+256, yc-256, yc+256
             x_min, x_max, y_min, y_max, self.image_pad = max(x_min, 0), min(x_max, w), max(y_min, 0), min(y_max, h), None
 
-            if x_min == 0 or x_max == 512 or y_min == 0 or y_max == 512:
+            if x_min == 0 or x_max == cfg.target_image_size[0] or y_min == 0 or y_max == cfg.target_image_size[1]:
                 top, bottom, left, right = abs(yc-256-y_min), abs(yc+256-y_max), abs(xc-256-x_min), abs(xc+256-x_max)
                 self.image_pad = [top, bottom, left, right]
 
@@ -169,7 +169,8 @@ class FaceDataset(BaseDataset):
 
         target_ind = data_index + 1  # history_ind, current_ind
         landmarks = self.landmarks2D[dataset_index][target_ind]  # [cfg.face_landmark_num, 2]
-        shoulders = self.shoulders[dataset_index][target_ind].copy()
+        #shoulders = self.shoulders[dataset_index][target_ind].copy()
+        shoulders = None
 
         dataset_name = self.clip_names[dataset_index]
         clip_root = os.path.join(self.dataset_root, dataset_name)
@@ -182,7 +183,7 @@ class FaceDataset(BaseDataset):
             # do transform
             tgt_image = self.common_dataset_transform(tgt_image, dataset_index, None)
         else:
-            pass
+            assert 0
 
         h, w, _ = tgt_image.shape
         """
@@ -190,12 +191,14 @@ class FaceDataset(BaseDataset):
         a transformation matrix according to the crop and resize parameters
         """
         # transformations & online data augmentations on images and landmarks
-        self.get_crop_coords(landmarks, (w, h), dataset_name, random_trans_scale=0)  # 30.5 µs ± 348 ns  random translation
+        #self.get_crop_coords(landmarks, (w, h), dataset_name, random_trans_scale=0)  # 30.5 µs ± 348 ns  random translation
 
-        transform_tgt = self.get_transform(dataset_name, True, n_img=1, n_keypoint=1, flip=False)
-        transformed_tgt = transform_tgt(image=tgt_image, keypoints=landmarks)
+        #transform_tgt = self.get_transform(dataset_name, True, n_img=1, n_keypoint=1, flip=False)
+        #transformed_tgt = transform_tgt(image=tgt_image, keypoints=landmarks)
 
-        tgt_image, points = transformed_tgt['image'], np.array(transformed_tgt['keypoints']).astype(np.float32)
+        #tgt_image, points = transformed_tgt['image'], np.array(transformed_tgt['keypoints']).astype(np.float32)
+
+        tgt_image, points = tgt_image, landmarks
 
         feature_map = self.get_feature_image(points, (self.opt.loadSize, self.opt.loadSize), shoulders,
                                              self.image_pad[dataset_index])[np.newaxis, :].astype(np.float32)/255.
@@ -217,8 +220,8 @@ class FaceDataset(BaseDataset):
             output = cv2.copyMakeBorder(output, top, bottom, left, right, cv2.BORDER_CONSTANT, value=0)
         return output
 
-    def generate_facial_weight_mask(self, points, h=512, w=512):
-        mouth_mask = np.zeros([512, 512, 1])
+    def generate_facial_weight_mask(self, points, h=cfg.target_image_size[1], w=cfg.target_image_size[0]):
+        mouth_mask = np.zeros([h, w, 1])
         points = points[self.mouth_outer]
         points = np.int32(points)
         mouth_mask = cv2.fillPoly(mouth_mask, [points], (255, 0, 0))
@@ -289,7 +292,7 @@ class FaceDataset(BaseDataset):
                 img = cv2.line(img, tuple(pt1), tuple(pt2), 255, 2)  # BGR
         return img
 
-    def draw_face_feature_maps(self, keypoints, size=(512, 512)):
+    def draw_face_feature_maps(self, keypoints, size=cfg.target_image_size):
         w, h = size
         # edge map for face region from keypoints
         im_edges = np.zeros((h, w), np.uint8)  # edge map for all edges

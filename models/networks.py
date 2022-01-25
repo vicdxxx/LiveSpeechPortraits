@@ -814,7 +814,7 @@ class NLayerDiscriminator(nn.Module):
         nf = ndf
         for n in range(1, n_layers):
             nf_prev = nf
-            nf = min(nf * 2, 512)
+            nf = min(nf * 2, cfg.net_hidden_size)
             sequence += [[
                 nn.Conv2d(nf_prev, nf, kernel_size=kw, stride=2, padding=padw),
                 nn.BatchNorm2d(nf),
@@ -822,7 +822,7 @@ class NLayerDiscriminator(nn.Module):
             ]]
 
         nf_prev = nf
-        nf = min(nf * 2, 512)
+        nf = min(nf * 2, cfg.net_hidden_size)
         sequence += [[
             nn.Conv2d(nf_prev, nf, kernel_size=kw, stride=1, padding=padw),
             nn.BatchNorm2d(nf),

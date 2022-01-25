@@ -174,7 +174,7 @@ class AudioVisualDataset(BaseDataset):
                         length = torch.Tensor([mel_nframe])
                         #hidden_reps = torch.zeros([mel_nframe, self.opt.APC_hidden_size]).cuda()
                         mel80_torch = torch.from_numpy(mel80.astype(np.float32)).cuda().unsqueeze(0)
-                        hidden_reps = APC_model.forward(mel80_torch, length)[0]   # [mel_nframe, 512]
+                        hidden_reps = APC_model.forward(mel80_torch, length)[0]   # [mel_nframe, cfg.audio_feature_size]
                         hidden_reps = hidden_reps.cpu().numpy()
                         np.save(APC_feature_path, hidden_reps)
                         self.audio_features[i] = hidden_reps
@@ -226,7 +226,7 @@ class AudioVisualDataset(BaseDataset):
             target_pts3d = self.feats[file_index][current_frame: current_frame + self.seq_len, self.indices]
             #target_pts3d = target_pts3d.reshape(self.seq_len, -1)
             target_pts3d = target_pts3d.reshape(-1, len(self.indices)*dim_num)
-            
+
             A2Lsamples = torch.from_numpy(A2Lsamples).float()
             target_pts3d = torch.from_numpy(target_pts3d).float()
 
@@ -244,7 +244,7 @@ class AudioVisualDataset(BaseDataset):
                     A2Hsamples = self.audio_features[file_index][
                         2 * (A2H_history_start + self.frame_future): 2 * (A2H_history_start + self.frame_future + A2H_item_length)]
                 else:
-                    A2Hsamples = np.zeros([A2H_item_length, self.audio_window, 512])
+                    A2Hsamples = np.zeros([A2H_item_length, self.audio_window, cfg.audio_feature_size])
                     for i in range(A2H_item_length):
                         A2Hsamples[i] = self.audio_features[file_index][
                             2 * (A2H_history_start + i) - self.half_audio_win: 2 * (A2H_history_start + i) + self.half_audio_win]

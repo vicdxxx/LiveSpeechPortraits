@@ -7,7 +7,7 @@ import torch
 import torch.utils.data
 import numpy as np
 import librosa
-
+import config as cfg
 
 """
 useage
@@ -22,7 +22,7 @@ import torch.nn.functional as F
 class Audio2Mel(torch.nn.Module):
     def __init__(
             self,
-            n_fft=512,
+            n_fft=cfg.n_fft,
             hop_length=256,
             win_length=1024,
             sampling_rate=16000,

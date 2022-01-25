@@ -4,11 +4,6 @@ from .base_options_feature2face import BaseOptions
 class TrainOptions(BaseOptions):
     def initialize(self):
         BaseOptions.initialize(self)
-        # dataset settings
-        self.parser.add_argument('--dataset_names', type=str, default='name', help='chooses how datasets are loaded.')
-        self.parser.add_argument('--train_dataset_names', type=str, default='train_list.txt')
-        self.parser.add_argument('--validate_dataset_names', type=str, default='val_list.txt')
-
         # training flags
         self.parser.add_argument('--display_freq', type=int, default=10, help='frequency of showing training results on screen(iterations)')
         self.parser.add_argument('--print_freq', type=int, default=10, help='frequency of showing training results on console(epochs)')
@@ -19,10 +14,10 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--load_epoch', type=str, default='latest', help='which epoch to load? set to latest to use latest cached model')
         self.parser.add_argument('--n_epochs_warm_up', type=int, default=5, help='number of epochs warm up')
         self.parser.add_argument('--n_epochs', type=int, default=10, help='number of epochs')
+        self.parser.add_argument('--n_epochs_decay', type=int, default=10, help='number of epochs to linearly decay learning rate to lr_final')
         self.parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
         self.parser.add_argument('--lr', type=float, default=1e-4, help='initial learning rate for adam')
         self.parser.add_argument('--lr_final', type=float, default=1e-5, help='final learning rate for adam')
-        self.parser.add_argument('--n_epochs_decay', type=int, default=10, help='number of epochs to linearly decay learning rate to lr_final')
         self.parser.add_argument('--lr_policy', type=str, default='linear', help='learning rate policy. [linear | step | plateau | cosine]')
         self.parser.add_argument('--lr_decay_iters', type=int, default=900, help='multiply by a gamma every lr_decay_iters iterations')
         self.parser.add_argument('--lr_decay_gamma', type=float, default=0.25, help='multiply by a gamma every lr_decay_iters iterations')

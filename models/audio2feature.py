@@ -1,5 +1,6 @@
 import torch.nn as nn
 from .networks import WaveNet
+import config as cfg
 
 
 class Audio2Feature(nn.Module):
@@ -42,13 +43,13 @@ class Audio2Feature(nn.Module):
                                 bidirectional=False,
                                 batch_first=True)
             self.fc = nn.Sequential(
-                nn.Linear(in_features=256, out_features=512),
-                nn.BatchNorm1d(512),
+                nn.Linear(in_features=256, out_features=cfg.net_hidden_size),
+                nn.BatchNorm1d(cfg.net_hidden_size),
                 nn.LeakyReLU(0.2),
-                nn.Linear(512, 512),
-                nn.BatchNorm1d(512),
+                nn.Linear(cfg.net_hidden_size, cfg.net_hidden_size),
+                nn.BatchNorm1d(cfg.net_hidden_size),
                 nn.LeakyReLU(0.2),
-                nn.Linear(512, output_size))
+                nn.Linear(cfg.net_hidden_size, output_size))
         pass
 
     def forward(self, audio_features):

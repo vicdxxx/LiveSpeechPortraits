@@ -4,55 +4,107 @@
 All videos are extracted at 60 frames per second (FPS)
 and the synchronized audio waves are sampled at 16KHz frequency
 
-crop the video to keep the face at the center and then resize to 512 × 512
+alternatives:
+(1) crop the video to keep the face at the center and then resize to cfg.audio_feature_size (prefer)
+(2) directly resize to cfg.audio_feature_size
 
 cfg.face_landmark_num pre-defned facial landmarks
 """
 import torch
 from datasets.face_dataset import FaceDataset
 from tqdm import tqdm
-from options.test_audio2feature_options import TestOptions as FeatureOptions
-from options.test_audio2headpose_options import TestOptions as HeadposeOptions
-from options.test_feature2face_options import TestOptions as RenderOptions
+from options.test_audio2feature_options import TrainOptions as FeatureOptions
+from options.test_audio2headpose_options import TrainOptions as HeadposeOptions
+from options.test_feature2face_options import TrainOptions as RenderOptions
 from models.feature2face_model import Feature2FaceModel
 import argparse
-from learning.util import save_model
-
+import config as cfg
+from torch.utils.data import DataLoader
+import copy
+from os.path import join
+import yaml
+from models import create_model
 
 def train():
-    parser = argparse.ArgumentParser()
-    to = RenderOptions()
+    f_option = FeatureOptions()
+    h_option = HeadposeOptions()
+    r_option = RenderOptions()
+
     # --continue_train --load_epoch 0 --epoch_count 0
-    args_raw = ''
+    #--load_pretrain xxx --debug --fp16 1 --local_rank 1 --verbose
+    #--continue_train --TTUR --no_html
+    #seq_max_len not use
+    args_raw = f'--task Feature2Face --model feature2face --name Feature2Face --tf_log \
+        --dataset_mode face --dataset_names Vic --dataroot ./data \
+        --isH5 1 --suffix .jpg --serial_batches --resize_or_crop scaleWidth  --no_flip 1 \
+       --display_freq 100 --print_freq 10 --save_latest_freq 10 --save_epoch_freq 10 \
+        --phase train --load_epoch latest --n_epochs_warm_up 5 \
+        --n_epochs 100 --n_epochs_decay 100 --lr_decay_iters 1000 --lr_decay_gamma 0.25\
+        --beta1 0.5 --lr 1e-4 --lr_final 1e-5 --lr_policy linear --gan_mode ls --pool_size 1 --frame_jump 1 \
+        --epoch_count 0 --seq_max_len {cfg.FPS*2}'
     args_raw = args_raw.split(' ')
     args = []
     for x in args_raw:
         if len(x.strip()) > 0:
             args.append(x)
-    opt = to.parse(args=args)
+    f_option.isTrain = False
+    h_option.isTrain = False
+    r_option.isTrain = True
+    opt = f_option.parse(args=args)
 
     epoch_num = 1
     iter_per_epoch = 10
-    dataset = FaceDataset()
-    model = Feature2FaceModel()
-    model.schedulers
+    dataset = FaceDataset(opt)
+    dataloader = DataLoader(dataset, batch_size=1, shuffle=False,
+                            num_workers=0,
+                            pin_memory=True,
+                            drop_last=True)
+    val_opt = copy.deepcopy(opt)
+    val_opt.phase = 'val'
+    val_dataset = FaceDataset(opt)
+    val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False,
+                                num_workers=0,
+                                pin_memory=True,
+                                drop_last=True)
 
-    adam_betas = (0.9, 0.999)
-    lr = 1e-4
-    model.schedulers
+    with open(join('./config/', opt.dataset_names + '.yaml')) as f:
+        config = yaml.load(f)
+    data_root = opt.dataroot
 
-    opt.save_epoch_freq
-    opt.save_by_iter
-    opt.loss_smooth_weight
+    print('---------- Create Model: {} -------------'.format(opt.task))
+    #model = Feature2FaceModel()
+    model = create_model(opt)
+    model.setup(opt)
+
     for i_epoch in range(opt.n_epochs):
-        for A2Hsamples, target_info in dataset:
-            #model.resume_training()
-            model.set_input(A2Hsamples, target_info)
-            model.forward()
-            model.backward()
-            if i_epoch % opt.save_epoch_freq == 0:
-                model.validate()
-                # save mode
+        iter_cnt = 0
+        train_iter = iter(dataloader)
+        print(f'i_epoch: {i_epoch}')
+        while 1:
+            try:
+                batch = next(train_iter)
+                iter_cnt += 1
+                model.set_input(data=batch)
+                model.optimize_parameters()
+            except Exception as e:
+                #print(f'exception: {e}')
+                print(f'iter_cnt: {iter_cnt}, loss: {model.loss}')
+                break
+        runned_epoch = i_epoch + 1
+        if runned_epoch % opt.save_epoch_freq == 0:
+            val_iter = iter(val_dataloader)
+            while 1:
+                try:
+                    val_batch = next(val_iter)
+                    model.set_input(data=batch)
+                    model.validate()
+                    print(f'val_batch loss: {model.loss}')
+                except Exception as e:
+                    #print(f'exception: {e}')
+                    break
+            # save mode
+            model.save_networks(runned_epoch)
+
 
 def main():
     train()

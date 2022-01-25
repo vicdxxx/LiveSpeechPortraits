@@ -65,7 +65,7 @@ class Predictor(cog.Predictor):
         data_root = join('data', opt.id)
 
         ############################ Hyper Parameters #############################
-        h, w, sr, FPS = cfg.h, cfg.w, cfg.sr, cfg.FPS
+        h, w, sr, FPS = cfg.target_image_size[1], cfg.target_image_size[0], cfg.sr, cfg.FPS
         mouth_indices = cfg.mouth_indices
         eye_brow_indices = cfg.eye_brow_indices
 
@@ -98,8 +98,8 @@ class Predictor(cog.Predictor):
 
         # load reconstruction data
         scale = sio.loadmat(join(data_root, 'id_scale.mat'))['scale'][0, 0]
-        Audio2Mel_torch = audio_funcs.Audio2Mel(n_fft=512, hop_length=int(16000 / 120), win_length=int(16000 / 60),
-                                                sampling_rate=16000,
+        Audio2Mel_torch = audio_funcs.Audio2Mel(n_fft=cfg.n_fft, hop_length=int(cfg.sr / (cfg.FPS*2)), win_length=int(cfg.sr / cfg.FPS),
+                                                sampling_rate=cfg.sr,
                                                 n_mel_channels=80, mel_fmin=90, mel_fmax=7600.0).cuda()
 
         ########################### Experiment Settings ###########################
@@ -184,7 +184,7 @@ class Predictor(cog.Predictor):
         with torch.no_grad():
             length = torch.Tensor([mel_nframe])
             mel80_torch = torch.from_numpy(mel80.astype(np.float32)).cuda().unsqueeze(0)
-            hidden_reps = APC_model.forward(mel80_torch, length)[0]  # [mel_nframe, 512]
+            hidden_reps = APC_model.forward(mel80_torch, length)[0]  # [mel_nframe, cfg.audio_feature_size]
             hidden_reps = hidden_reps.cpu().numpy()
         audio_feats = hidden_reps
 
@@ -234,10 +234,8 @@ class Predictor(cog.Predictor):
         for k in tqdm(range(nframe)):
             ind = k % candidate_eye_brow.shape[0]
             final_pts3d[k, eye_brow_indices] = candidate_eye_brow[ind] + mean_pts3d[eye_brow_indices]
-            pred_landmarks[k], _, _ = utils.project_landmarks(camera_intrinsic, camera.relative_rotation,
-                                                              camera.relative_translation, scale,
-                                                              pred_headpose[k], final_pts3d[k])
-
+            pred_landmarks[k], _, _ = utils.project_landmarks(camera_intrinsic, camera.relative_rotation, camera.relative_translation, scale, pred_headpose[k], final_pts3d[k])
+            #pred_landmarks[k], _, _ = utils.project_landmarks_orthogonal(camera_intrinsic, camera.relative_rotation, camera.relative_translation, scale, pred_headpose[k], final_pts3d[k])
             ## Upper Body Motion
         pred_shoulders = np.zeros([nframe, 18, 2], dtype=np.float32)
         pred_shoulders3D = np.zeros([nframe, 18, 3], dtype=np.float32)

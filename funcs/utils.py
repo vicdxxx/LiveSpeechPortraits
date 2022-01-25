@@ -237,9 +237,9 @@ def project_landmarks_orthogonal(camera_intrinsic, viewpoint_R, viewpoint_T, sca
     ''' project 2d landmarks given predicted 3d landmarks & headposes and user-defined
     camera & viewpoint parameters
     '''
-    pts2d_project = pts_3d[:, :, :2] * 512
-    pts2d_project[:, :, 0] *= cfg.h
-    pts2d_project[:, :, 1] *= cfg.w
+    pts2d_project = pts_3d[:, :, :2]
+    pts2d_project[:, :, 0] *= cfg.target_image_size[0]
+    pts2d_project[:, :, 1] *= cfg.target_image_size[1]
     return pts2d_project, None, None
 
 
@@ -473,7 +473,7 @@ def show_image(image, wait=None, name="x", channel_reverse=True, points=None):
         img = img[:, :, ::-1]
     print(img.shape)
     cv.namedWindow(name, 0)
-    cv.resizeWindow(name, 512, 512)
+    cv.resizeWindow(name, cfg.target_image_size[0], cfg.target_image_size[1])
     cv.imshow(name, img)
     if wait is not None:
         cv.waitKey(wait)
