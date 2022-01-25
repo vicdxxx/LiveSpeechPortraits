@@ -99,7 +99,6 @@ class AudioVisualDataset(BaseDataset):
                 print('find denoised wav!')
             else:
                 audio_path = os.path.join(clip_root, name + cfg.audio_extension)
-            self.audio[i], _ = librosa.load(audio_path, sr=self.sample_rate)
 
             if opt.use_delta_pts:
                 self.pts3d_mean[i] = np.load(os.path.join(clip_root, 'mean_pts3d.npy'))
@@ -157,6 +156,7 @@ class AudioVisualDataset(BaseDataset):
 
             if need_deepfeats:
                 if self.opt.audio_encoder == 'APC':
+                    self.audio[i], _ = librosa.load(audio_path, sr=self.sample_rate)
                     print('dataset {} need to pre-compute APC features ...'.format(name))
                     print('first we compute mel spectram for dataset {} '.format(name))
                     mel80 = utils.compute_mel_one_sequence(self.audio[i])

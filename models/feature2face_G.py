@@ -11,18 +11,17 @@ class Feature2Face_G(nn.Module):
         # initialize
         self.opt = opt
         self.isTrain = opt.isTrain
-        # define net G  
-        
+        # define net G
+
         if opt.size == 'small':
-            self.netG = Feature2FaceGenerator_Unet(input_nc=23, output_nc=3, num_downs=opt.n_downsample_G, ngf=opt.ngf) 
+            self.netG = Feature2FaceGenerator_Unet(input_nc=23, output_nc=3, num_downs=opt.n_downsample_G, ngf=opt.ngf)
         elif opt.size == 'normal':
             self.netG = Feature2FaceGenerator_normal(input_nc=13, output_nc=3, num_downs=opt.n_downsample_G, ngf=opt.ngf)
         elif opt.size == 'large':
             self.netG = Feature2FaceGenerator_large(input_nc=13, output_nc=3, num_downs=opt.n_downsample_G, ngf=opt.ngf)
-            
-        print('---------- Generator networks initialized -------------') 
+
+        print('---------- Generator networks initialized -------------')
         print('-------------------------------------------------------')
-    
 
     def forward(self, input):
         if self.opt.fp16:
@@ -30,17 +29,5 @@ class Feature2Face_G(nn.Module):
                 fake_pred = self.netG(input)
         else:
             fake_pred = self.netG(input)
-                      
+
         return fake_pred
-
-    
-
-
-
-
-
-
-
-
-
-

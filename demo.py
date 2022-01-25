@@ -72,7 +72,7 @@ if __name__ == '__main__':
     else:
         opt = parser.parse_args()
     device = torch.device(opt.device)
-    with open(join('./config/', opt.id + '.yaml')) as f:
+    with open(join('./config_file/', opt.id + '.yaml')) as f:
         config = yaml.load(f)
     data_root = join('./data/', opt.id)
     # create the results folder
@@ -224,11 +224,12 @@ if __name__ == '__main__':
     pred_pts3d = utils.solve_intersect_mouth(pred_pts3d)  # solve intersect lips if exist
 
     # headpose
-    pred_Head[:, 0:3] *= rot_AMP
-    pred_Head[:, 3:6] *= trans_AMP
-    pred_headpose = utils.headpose_smooth(pred_Head[:, :6], Head_smooth_sigma).astype(np.float32)
-    pred_headpose[:, 3:] += mean_translation
-    pred_headpose[:, 0] += 180
+    if cfg.DATASET_NAME == 'official':
+        pred_Head[:, 0:3] *= rot_AMP
+        pred_Head[:, 3:6] *= trans_AMP
+        pred_headpose = utils.headpose_smooth(pred_Head[:, :6], Head_smooth_sigma).astype(np.float32)
+        pred_headpose[:, 3:] += mean_translation
+        pred_headpose[:, 0] += 180
 
     # compute projected landmarks
     pred_landmarks = np.zeros([nframe, cfg.face_landmark_num, 2], dtype=np.float32)
@@ -238,27 +239,34 @@ if __name__ == '__main__':
     for k in tqdm(range(nframe)):
         ind = k % candidate_eye_brow.shape[0]
         final_pts3d[k, eye_brow_indices] = candidate_eye_brow[ind] + mean_pts3d[eye_brow_indices]
-        pred_landmarks[k], _, _ = utils.project_landmarks(camera_intrinsic, camera.relative_rotation, camera.relative_translation, scale, pred_headpose[k], final_pts3d[k])
-        #pred_landmarks[k], _, _ = utils.project_landmarks_orthogonal(camera_intrinsic, camera.relative_rotation, camera.relative_translation, scale, pred_headpose[k], final_pts3d[k])
+        if cfg.DATASET_NAME == 'official':
+            pred_landmarks[k], _, _ = utils.project_landmarks(camera_intrinsic, camera.relative_rotation, camera.relative_translation, scale, pred_headpose[k], final_pts3d[k])
+        elif cfg.DATASET_NAME == 'Vic':
+            pred_landmarks[k], _, _ = utils.project_landmarks_orthogonal(camera_intrinsic, camera.relative_rotation, camera.relative_translation, scale, pred_headpose[k], final_pts3d[k])
+        else:
+            assert 0
 
     # Upper Body Motion
-    pred_shoulders = np.zeros([nframe, 18, 2], dtype=np.float32)
-    pred_shoulders3D = np.zeros([nframe, 18, 3], dtype=np.float32)
-    for k in range(nframe):
-        diff_trans = pred_headpose[k][3:] - ref_trans
-        pred_shoulders3D[k] = shoulder3D + diff_trans * shoulder_AMP
-        # project
-        project = camera_intrinsic.dot(pred_shoulders3D[k].T)
-        project[:2, :] /= project[2, :]  # divide z
-        pred_shoulders[k] = project[:2, :].T
+    if cfg.DATASET_NAME == 'official':
+        pred_shoulders = np.zeros([nframe, 18, 2], dtype=np.float32)
+        pred_shoulders3D = np.zeros([nframe, 18, 3], dtype=np.float32)
+        for k in range(nframe):
+            diff_trans = pred_headpose[k][3:] - ref_trans
+            pred_shoulders3D[k] = shoulder3D + diff_trans * shoulder_AMP
+            # project
+            project = camera_intrinsic.dot(pred_shoulders3D[k].T)
+            project[:2, :] /= project[2, :]  # divide z
+            pred_shoulders[k] = project[:2, :].T
 
     # 6. Image2Image translation & Save resuls
     print('6. Image2Image translation & Saving results...')
     for ind in tqdm(range(0, nframe), desc='Image2Image translation inference'):
         # feature_map: [input_nc, h, w]
-        current_pred_feature_map = facedataset.dataset.get_data_test_mode(pred_landmarks[ind],
-                                                                          pred_shoulders[ind],
-                                                                          facedataset.dataset.image_pad)
+        if cfg.DATASET_NAME == 'official':
+            current_pred_feature_map = facedataset.dataset.get_data_test_mode(pred_landmarks[ind], pred_shoulders[ind], facedataset.dataset.image_pad)
+        elif cfg.DATASET_NAME == 'Vic':
+            current_pred_feature_map = facedataset.dataset.get_data_test_mode(pred_landmarks[ind], None, facedataset.dataset.image_pad)
+
         input_feature_maps = current_pred_feature_map.unsqueeze(0).to(device)
         pred_fake = Feature2Face.inference(input_feature_maps, img_candidates)
         # save results

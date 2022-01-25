@@ -10,12 +10,16 @@ alternatives:
 
 cfg.face_landmark_num pre-defned facial landmarks
 """
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 import torch
 from datasets.face_dataset import FaceDataset
 from tqdm import tqdm
-from options.test_audio2feature_options import TrainOptions as FeatureOptions
-from options.test_audio2headpose_options import TrainOptions as HeadposeOptions
-from options.test_feature2face_options import TrainOptions as RenderOptions
+from options.train_audio2feature_options import TrainOptions as FeatureOptions
+from options.train_audio2headpose_options import TrainOptions as HeadposeOptions
+from options.train_feature2face_options import TrainOptions as RenderOptions
 from models.feature2face_model import Feature2FaceModel
 import argparse
 import config as cfg
@@ -34,7 +38,7 @@ def train():
     #--load_pretrain xxx --debug --fp16 1 --local_rank 1 --verbose
     #--continue_train --TTUR --no_html
     #seq_max_len not use
-    args_raw = f'--task Feature2Face --model feature2face --name Feature2Face --tf_log \
+    args_raw = f'--task Feature2Face --model feature2face --name Feature2Face --tf_log --gpu_ids 0\
         --dataset_mode face --dataset_names Vic --dataroot ./data \
         --isH5 1 --suffix .jpg --serial_batches --resize_or_crop scaleWidth  --no_flip 1 \
        --display_freq 100 --print_freq 10 --save_latest_freq 10 --save_epoch_freq 10 \
@@ -50,26 +54,25 @@ def train():
     f_option.isTrain = False
     h_option.isTrain = False
     r_option.isTrain = True
-    opt = f_option.parse(args=args)
+    opt = r_option.parse(args=args)
 
-    epoch_num = 1
-    iter_per_epoch = 10
     dataset = FaceDataset(opt)
     dataloader = DataLoader(dataset, batch_size=1, shuffle=False,
                             num_workers=0,
-                            pin_memory=True,
+                            pin_memory=0,
                             drop_last=True)
     val_opt = copy.deepcopy(opt)
     val_opt.phase = 'val'
-    val_dataset = FaceDataset(opt)
+    val_dataset = FaceDataset(val_opt)
     val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False,
                                 num_workers=0,
-                                pin_memory=True,
+                                pin_memory=0,
                                 drop_last=True)
 
-    with open(join('./config/', opt.dataset_names + '.yaml')) as f:
+    with open(join('./config_file/', opt.dataset_names[0] + '.yaml')) as f:
         config = yaml.load(f)
     data_root = opt.dataroot
+    opt.size = config['model_params']['Image2Image']['size']
 
     print('---------- Create Model: {} -------------'.format(opt.task))
     #model = Feature2FaceModel()
@@ -87,8 +90,8 @@ def train():
                 model.set_input(data=batch)
                 model.optimize_parameters()
             except Exception as e:
-                #print(f'exception: {e}')
-                print(f'iter_cnt: {iter_cnt}, loss: {model.loss}')
+                print(f'exception: {e}')
+                print(f'iter_cnt: {iter_cnt}, loss_dict: {model.loss_dict}')
                 break
         runned_epoch = i_epoch + 1
         if runned_epoch % opt.save_epoch_freq == 0:
@@ -98,7 +101,7 @@ def train():
                     val_batch = next(val_iter)
                     model.set_input(data=batch)
                     model.validate()
-                    print(f'val_batch loss: {model.loss}')
+                    print(f'val_batch loss_G: {model.loss_G}, loss_D: {model.loss_D}')
                 except Exception as e:
                     #print(f'exception: {e}')
                     break

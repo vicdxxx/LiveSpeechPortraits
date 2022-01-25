@@ -7,15 +7,15 @@
            APC_model_path: ./data/APC_epoch_160.model    
              APC_residual: False                         
            APC_rnn_layers: 3                             
-                      FPS: 22.0                          
+                      FPS: 22                            
              LSTM_dropout: 0                             
          LSTM_hidden_size: 256                           
               LSTM_layers: 3                             
          LSTM_output_size: 80                            
             LSTM_residual: False                         
-     LSTM_sequence_length: 22.0                          
+     LSTM_sequence_length: 22                            
            audioRF_future: 0                             
-          audioRF_history: 60                            	[default: 22.0]
+          audioRF_history: 22                            
             audio_encoder: APC                           
 audiofeature_input_channels: 80                            
                batch_size: 32                            
@@ -28,7 +28,7 @@ audiofeature_input_channels: 80
               epoch_count: 0                             
           feature_decoder: LSTM                          
             feature_dtype: pts3d                         
-             frame_future: 18                            
+             frame_future: 7                             
         frame_jump_stride: 4                             
                     gamma: 0.2                           
            gaussian_noise: 1                             
@@ -56,7 +56,7 @@ audiofeature_input_channels: 80
              re_transform: 0                             
               sample_rate: 16000                         
              save_by_iter: True                          	[default: False]
-          save_epoch_freq: 10                            	[default: 5]
+          save_epoch_freq: 50                            	[default: 5]
           sequence_length: 90                            
            serial_batches: True                          	[default: False]
                    suffix: vic                           	[default: ]

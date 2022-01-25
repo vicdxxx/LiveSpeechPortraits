@@ -1,6 +1,10 @@
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 import argparse
 import os
-from util import util
+import util.util as util
 import torch
 import models
 import numpy as np

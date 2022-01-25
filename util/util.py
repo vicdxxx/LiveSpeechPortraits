@@ -2,7 +2,8 @@ from __future__ import print_function
 import torch
 import numpy as np
 from PIL import Image
-import inspect, re
+import inspect
+import re
 import numpy as np
 import os
 import collections
@@ -11,7 +12,6 @@ import cv2
 from collections import OrderedDict
 
 from . import flow_viz
-
 
 
 # Converts a Tensor into a Numpy array
@@ -35,41 +35,46 @@ def tensor2im(image_tensor, imtype=np.uint8, normalize=True):
         image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0
     else:
         image_numpy = np.transpose(image_numpy, (1, 2, 0)) * 255.0
-    #image_numpy = (np.transpose(image_numpy, (1, 2, 0)) * std + mean)  * 255.0        
+    #image_numpy = (np.transpose(image_numpy, (1, 2, 0)) * std + mean)  * 255.0
     image_numpy = np.clip(image_numpy, 0, 255)
-    if image_numpy.shape[2] == 1:        
-        image_numpy = image_numpy[:,:,0]
+    if image_numpy.shape[2] == 1:
+        image_numpy = image_numpy[:, :, 0]
     return image_numpy.astype(imtype)
 
 
 def tensor2flow(flo, imtype=np.uint8):
-    flo = flo[0].permute(1,2,0).cpu().detach().numpy()
+    flo = flo[0].permute(1, 2, 0).cpu().detach().numpy()
     flo = flow_viz.flow_to_image(flo)
     return flo
 
 
 def add_dummy_to_tensor(tensors, add_size=0):
-    if add_size == 0 or tensors is None: return tensors
+    if add_size == 0 or tensors is None:
+        return tensors
     if isinstance(tensors, list):
-        return [add_dummy_to_tensor(tensor, add_size) for tensor in tensors]    
-    
+        return [add_dummy_to_tensor(tensor, add_size) for tensor in tensors]
+
     if isinstance(tensors, torch.Tensor):
         dummy = torch.zeros_like(tensors)[:add_size]
         tensors = torch.cat([dummy, tensors])
     return tensors
 
+
 def remove_dummy_from_tensor(tensors, remove_size=0):
-    if remove_size == 0 or tensors is None: return tensors
+    if remove_size == 0 or tensors is None:
+        return tensors
     if isinstance(tensors, list):
-        return [remove_dummy_from_tensor(tensor, remove_size) for tensor in tensors]    
-    
+        return [remove_dummy_from_tensor(tensor, remove_size) for tensor in tensors]
+
     if isinstance(tensors, torch.Tensor):
         tensors = tensors[remove_size:]
     return tensors
 
+
 def save_image(image_numpy, image_path):
     image_pil = Image.fromarray(image_numpy)
     image_pil.save(image_path)
+
 
 def print_numpy(x, val=True, shp=False):
     x = x.astype(np.float64)
@@ -80,6 +85,7 @@ def print_numpy(x, val=True, shp=False):
         print('mean = %3.3f, min = %3.3f, max = %3.3f, median = %3.3f, std=%3.3f' % (
             np.mean(x), np.min(x), np.max(x), np.median(x), np.std(x)))
 
+
 def mkdirs(paths):
     if isinstance(paths, list) and not isinstance(paths, str):
         for path in paths:
@@ -87,7 +93,7 @@ def mkdirs(paths):
     else:
         mkdir(paths)
 
+
 def mkdir(path):
     if not os.path.exists(path):
         os.makedirs(path)
-

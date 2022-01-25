@@ -30,6 +30,8 @@ class FaceDataset(BaseDataset):
         self.state = 'train' if self.opt.isTrain else 'test'
         self.dataset_name = opt.dataset_names[0]
 
+        #device = torch.device(opt.gpu_ids[0])
+
         # default settings
         # currently, we have 8 parts for face parts
         self.part_list = cfg.part_list
@@ -60,7 +62,12 @@ class FaceDataset(BaseDataset):
         self.headposes = [''] * self.clip_nums
 
         self.total_len = 0
+
+        self.target_w_half = cfg.target_image_size[0]//2
+        self.target_h_half = cfg.target_image_size[1]//2
         if self.opt.isTrain:
+            self.change_paras = np.load(os.path.join(self.dataset_root, 'change_paras.npz'))
+
             for i in range(self.clip_nums):
                 clip_name = self.clip_names[i]
                 clip_root = os.path.join(self.dataset_root, clip_name)
@@ -73,14 +80,13 @@ class FaceDataset(BaseDataset):
 
                 landmark_path = os.path.join(clip_root, 'tracked2D_normalized_pts_fix_contour.npy')
                 self.landmarks2D[i] = np.load(landmark_path).astype(np.float32)
-                change_paras = np.load(os.path.join(clip_root, 'change_paras.npz'))
-                scale, xc, yc = change_paras['scale'], change_paras['xc'], change_paras['yc']
-                x_min, x_max, y_min, y_max = xc-256, xc+256, yc-256, yc+256
+                scale, xc, yc = self.change_paras['scale'], self.change_paras['xc'], self.change_paras['yc']
+                x_min, x_max, y_min, y_max = xc-self.target_w_half, xc+self.target_w_half, yc-self.target_h_half, yc+self.target_h_half
                 # if need padding
                 x_min, x_max, y_min, y_max, self.image_pad[i] = max(x_min, 0), min(x_max, w), max(y_min, 0), min(y_max, h), None
 
                 if x_min == 0 or x_max == cfg.target_image_size[0] or y_min == 0 or y_max == cfg.target_image_size[1]:
-                    top, bottom, left, right = abs(yc-256-y_min), abs(yc+256-y_max), abs(xc-256-x_min), abs(xc+256-x_max)
+                    top, bottom, left, right = abs(yc-self.target_h_half-y_min), abs(yc+self.target_h_half-y_max), abs(xc-self.target_w_half-x_min), abs(xc+self.target_w_half-x_max)
                     self.image_pad[i] = [top, bottom, left, right]
                 self.image_transforms[i] = A.Compose([
                     A.Resize(np.int32(h*scale), np.int32(w*scale)),
@@ -109,17 +115,22 @@ class FaceDataset(BaseDataset):
                 # candidates images
 
                 tmp = []
-                for j in range(4):
+                candidates_num = 4
+                transform = A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5), max_pixel_value=255.0)
+                for j in range(candidates_num):
                     try:
-                        output = imread(os.path.join(clip_root, 'candidates', f'normalized_full_{j}.jpg'))
+                        output = imread(os.path.join(self.dataset_root, 'candidates', f'normalized_full_{j}.jpg'))
                     except Exception as e:
-                        imgc = imread(os.path.join(clip_root, 'candidates', f'full_{j}.jpg'))
+                        imgc = imread(os.path.join(self.dataset_root, 'candidates', f'full_{j}.jpg'))
                         output = self.common_dataset_transform(imgc, i)
-                        imsave(os.path.join(clip_root, 'candidates', f'normalized_full_{j}.jpg'), output)
-                    output = A.pytorch.transforms.ToTensor(normalize={'mean': (0.5, 0.5, 0.5), 'std': (0.5, 0.5, 0.5)})(image=output)['image']
+                        imsave(os.path.join(self.dataset_root, 'candidates', f'normalized_full_{j}.jpg'), output)
+                    #output = A.pytorch.transforms.ToTensor(normalize={'mean': (0.5, 0.5, 0.5), 'std': (0.5, 0.5, 0.5)})(image=output)['image']
+                    output = transform.apply(image=output)
+                    output = torch.from_numpy(output)
+                    output = output.permute(2, 0, 1)
                     tmp.append(output)
                 self.full_cand[i] = torch.cat(tmp)
-
+                print(f'self.full_cand[i].shape: {self.full_cand[i].shape}')
                 # headpose
                 fit_data_path = os.path.join(clip_root, '3d_fit_data.npz')
                 fit_data = np.load(fit_data_path)
@@ -156,11 +167,11 @@ class FaceDataset(BaseDataset):
             h, w, _ = example.shape
             change_paras = np.load(os.path.join(self.root, 'change_paras.npz'))
             scale, xc, yc = change_paras['scale'], change_paras['xc'], change_paras['yc']
-            x_min, x_max, y_min, y_max = xc-256, xc+256, yc-256, yc+256
+            x_min, x_max, y_min, y_max = xc-self.target_w_half, xc+self.target_w_half, yc-self.target_h_half, yc+self.target_h_half
             x_min, x_max, y_min, y_max, self.image_pad = max(x_min, 0), min(x_max, w), max(y_min, 0), min(y_max, h), None
 
             if x_min == 0 or x_max == cfg.target_image_size[0] or y_min == 0 or y_max == cfg.target_image_size[1]:
-                top, bottom, left, right = abs(yc-256-y_min), abs(yc+256-y_max), abs(xc-256-x_min), abs(xc+256-x_max)
+                top, bottom, left, right = abs(yc-self.target_h_half-y_min), abs(yc+self.target_h_half-y_max), abs(xc-self.target_w_half-x_min), abs(xc+self.target_w_half-x_max)
                 self.image_pad = [top, bottom, left, right]
 
     def __getitem__(self, ind):
@@ -178,10 +189,11 @@ class FaceDataset(BaseDataset):
             tgt_file_path = os.path.join(clip_root, dataset_name + '.h5')
             tgt_file = h5py.File(tgt_file_path, 'r')[dataset_name]
             #tgt_image = np.asarray(Image.open(io.BytesIO(tgt_file[target_ind])))
-            tgt_image = np.asarray(Image.open(tgt_file[target_ind]))
+            origin_image = np.asarray(Image.open(tgt_file[target_ind]))
 
             # do transform
-            tgt_image = self.common_dataset_transform(tgt_image, dataset_index, None)
+            tgt_image = self.common_dataset_transform(origin_image, dataset_index)
+            pass
         else:
             assert 0
 
@@ -196,7 +208,20 @@ class FaceDataset(BaseDataset):
         #transform_tgt = self.get_transform(dataset_name, True, n_img=1, n_keypoint=1, flip=False)
         #transformed_tgt = transform_tgt(image=tgt_image, keypoints=landmarks)
 
+        #transformed_tgt = self.image_transforms[dataset_index](image=origin_image, keypoints=landmarks)
+
         #tgt_image, points = transformed_tgt['image'], np.array(transformed_tgt['keypoints']).astype(np.float32)
+
+        scale, xc, yc = self.change_paras['scale'], self.change_paras['xc'], self.change_paras['yc']
+        x_min, x_max, y_min, y_max = xc-self.target_w_half, xc+self.target_w_half, yc-self.target_h_half, yc+self.target_h_half
+
+        landmarks *= scale
+        landmarks[:, 0] -= x_min
+        landmarks[:, 1] -= y_min
+
+        top, bottom, left, right = self.image_pad[dataset_index]
+        landmarks[:, 0] += left
+        landmarks[:, 1] += top
 
         tgt_image, points = tgt_image, landmarks
 
@@ -253,7 +278,9 @@ class FaceDataset(BaseDataset):
             A.Crop(x_min=min_x, x_max=max_x, y_min=min_y, y_max=max_y),
             A.Resize(self.opt.loadSize, self.opt.loadSize),
             A.HorizontalFlip(p=flip),
-            A.pytorch.transforms.ToTensor(normalize={'mean': (0.5, 0.5, 0.5), 'std': (0.5, 0.5, 0.5)} if normalize is True else None)],
+            #A.pytorch.transforms.ToTensor(normalize={'mean': (0.5, 0.5, 0.5), 'std': (0.5, 0.5, 0.5)} if normalize is True else None)],
+            A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5), max_pixel_value=255.0),
+            A.pytorch.ToTensorV2()],
             keypoint_params=A.KeypointParams(format='xy', remove_invisible=False) if keypoints is True else None,
             additional_targets=additional_targets_dict if additional_flag is True else None
         )

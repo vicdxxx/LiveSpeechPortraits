@@ -5,9 +5,12 @@ opencv_python==4.4.0.40
 opencv-python-headless==4.4.0.40
 scipy
 dominate
-albumentations==0.5.2
+albumentations==1.1.0
+#pip install git+https://github.com/albumentations-team/albumentations
+#pip install -U albumentations
 numpy
 beautifulsoup4
 scikit-image
 numba==0.48.0
+llvmlite==0.31.0
 pyyaml==5.4.1

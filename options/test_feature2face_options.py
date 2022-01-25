@@ -1,4 +1,8 @@
-from .base_options_feature2face import BaseOptions
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from options.base_options_feature2face import BaseOptions
 
 
 class TestOptions(BaseOptions):

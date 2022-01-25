@@ -1,6 +1,10 @@
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 import argparse
 import os
-from util import util
+import util.util as util
 import torch
 import numpy as np
 import config as cfg
@@ -77,10 +81,10 @@ class BaseOptions():
                 ids_list.append(id)
         return ids_list
 
-    def parse(self, save=True):
+    def parse(self, args=None, save=True):
         if not self.initialized:
             self.initialize()
-        self.opt, _ = self.parser.parse_known_args()
+        self.opt, _ = self.parser.parse_known_args(args=args)
         self.opt.isTrain = self.isTrain   # train or test
 
         self.opt.gpu_ids = self.parse_str(self.opt.gpu_ids)

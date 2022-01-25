@@ -82,7 +82,7 @@ def train():
         --dataset_type train \
         --audioRF_history {cfg.FPS} --audioRF_future 0 --feature_dtype pts3d --ispts_norm 1 --use_delta_pts 1 --frame_future {cfg.frame_future} \
         --predict_length 1 --only_mouth 1 --verbose --suffix vic \
-        --save_epoch_freq 10 --save_by_iter --phase train --re_transform 0 \
+        --save_epoch_freq 50 --save_by_iter --phase train --re_transform 0 \
         --train_dataset_names train_list.txt --validate_dataset_names val_list.txt \
         --n_epochs 200 --lr_policy linear --lr 1e-4 --lr_final 1e-5 --n_epochs_decay 200 \
         --validate_epoch 10 --loss_smooth_weight 0 --optimizer Adam'
@@ -104,13 +104,13 @@ def train():
                             drop_last=True)
     val_opt = copy.deepcopy(opt)
     val_opt.dataset_type = 'val'
-    val_dataset = AudioVisualDataset(opt)
+    val_dataset = AudioVisualDataset(val_opt)
     val_dataloader = DataLoader(val_dataset, batch_size=1, shuffle=False,
                                 num_workers=0,
                                 pin_memory=True,
                                 drop_last=True)
 
-    with open(join('./config/', opt.dataset_names + '.yaml')) as f:
+    with open(join('./config_file/', opt.dataset_names + '.yaml')) as f:
         config = yaml.load(f)
     data_root = opt.dataroot
 

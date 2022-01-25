@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
 import config as cfg
 from . import audio_funcs
 import numpy as np
@@ -8,8 +12,6 @@ from scipy.ndimage import gaussian_filter1d
 from sklearn.neighbors import KDTree
 import time
 from tqdm import tqdm
-import sys
-sys.path.append("..")
 
 
 class camera(object):
@@ -238,6 +240,7 @@ def project_landmarks_orthogonal(camera_intrinsic, viewpoint_R, viewpoint_T, sca
     camera & viewpoint parameters
     '''
     pts2d_project = pts_3d[:, :, :2]
+    pts2d_project = (pts2d_project + 1.0) / 2.0
     pts2d_project[:, :, 0] *= cfg.target_image_size[0]
     pts2d_project[:, :, 1] *= cfg.target_image_size[1]
     return pts2d_project, None, None
@@ -437,18 +440,18 @@ def show_pointcloud(verts, use_pytorch3d=1, use_plt_loop=0, block=None, use_inte
         plt.show()
 
 
-def show_image(image, wait=None, name="x", channel_reverse=True, points=None):
+def show_image(image, wait=0, name="x", channel_reverse=True, points=None):
     import numpy as np
     import cv2 as cv
     if isinstance(image, np.ndarray):
         img = image.copy()
     else:
-        import paddle
-        if isinstance(image, paddle.Tensor):
-            img = image.numpy().copy()
-        #import torch
-        # if isinstance(image, torch.Tensor):
-        #    img = image.cpu().detach().numpy().copy()
+        #import paddle
+        #if isinstance(image, paddle.Tensor):
+        #    img = image.numpy().copy()
+        import torch
+        if isinstance(image, torch.Tensor):
+            img = image.cpu().detach().numpy().copy()
 
     if len(img.shape) == 4:
         if img.shape[1] == 3:

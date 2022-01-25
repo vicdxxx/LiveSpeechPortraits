@@ -20,6 +20,7 @@ class Feature2FaceModel(BaseModel):
         """
         BaseModel.__init__(self, opt)
         self.Tensor = torch.cuda.FloatTensor
+        self.loss_dict = {}
         # specify the models you want to save to the disk. The training/test scripts will call <BaseModel.save_networks> and <BaseModel.load_networks>
         # define networks
         self.model_names = ['Feature2Face_G']
@@ -37,7 +38,8 @@ class Feature2FaceModel(BaseModel):
             # criterion
             self.criterionMaskL1 = MaskedL1Loss().cuda()
             self.criterionL1 = nn.L1Loss().cuda()
-            self.criterionVGG = VGGLoss.cuda()
+            self.criterionVGG = VGGLoss()
+            self.criterionVGG = self.criterionVGG.cuda()
             self.criterionFlow = nn.L1Loss().cuda()
 
             # initialize optimizer G

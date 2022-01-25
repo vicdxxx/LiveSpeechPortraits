@@ -1,4 +1,8 @@
-from .base_options_feature2face import BaseOptions
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+
+from options.base_options_feature2face import BaseOptions
 
 
 class TrainOptions(BaseOptions):
@@ -9,7 +13,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--print_freq', type=int, default=10, help='frequency of showing training results on console(epochs)')
         self.parser.add_argument('--save_latest_freq', type=int, default=100, help='frequency of to save the latest results(iterations)')
         self.parser.add_argument('--save_epoch_freq', type=int, default=1, help='frequency of saving checkpoints at the end of epochs')
-        self.parser.add_argument('--continue_train', default=True, action='store_true', help='continue training: load the latest model')
+        self.parser.add_argument('--continue_train', default=False, action='store_true', help='continue training: load the latest model')
         self.parser.add_argument('--phase', type=str, default='train', help='train, val, test, etc')
         self.parser.add_argument('--load_epoch', type=str, default='latest', help='which epoch to load? set to latest to use latest cached model')
         self.parser.add_argument('--n_epochs_warm_up', type=int, default=5, help='number of epochs warm up')
