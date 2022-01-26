@@ -137,18 +137,21 @@ def solve_LLE_projection(feat, feat_base):
         ft': [ndim,] reconstructed feats
     '''
     K, ndim = feat_base.shape
-    if K == 1:
-        feat_fuse = feat_base[0]
-        w = np.array([1])
-    else:
-        w = np.zeros(K)
-        B = feat - feat_base[0]   # [ndim,]
-        A = (feat_base[1:] - feat_base[0]).T   # [ndim, K-1]
-        AT = A.T
-        w[1:] = solve(AT.dot(A), AT.dot(B))
-        w[0] = 1 - w[1:].sum()
-        feat_fuse = w.dot(feat_base)
-
+    try:
+        if K == 1:
+            feat_fuse = feat_base[0]
+            w = np.array([1])
+        else:
+            w = np.zeros(K)
+            B = feat - feat_base[0]   # [ndim,]
+            A = (feat_base[1:] - feat_base[0]).T   # [ndim, K-1]
+            AT = A.T
+            w[1:] = solve(AT.dot(A), AT.dot(B))
+            w[0] = 1 - w[1:].sum()
+            feat_fuse = w.dot(feat_base)
+    except Exception as e:
+        print(f'solve_LLE_projection exception: {e}')
+        feat_fuse = feat
     return w, feat_fuse
 
 
@@ -235,14 +238,14 @@ def project_landmarks(camera_intrinsic, viewpoint_R, viewpoint_T, scale, headpos
     return pts2d_project, rot, trans
 
 
-def project_landmarks_orthogonal(camera_intrinsic, viewpoint_R, viewpoint_T, scale, headposes, pts_3d):
+def project_landmarks_orthogonal(pts_3d):
     ''' project 2d landmarks given predicted 3d landmarks & headposes and user-defined
     camera & viewpoint parameters
     '''
-    pts2d_project = pts_3d[:, :, :2]
+    pts2d_project = pts_3d[:, :2]
     pts2d_project = (pts2d_project + 1.0) / 2.0
-    pts2d_project[:, :, 0] *= cfg.target_image_size[0]
-    pts2d_project[:, :, 1] *= cfg.target_image_size[1]
+    pts2d_project[:, 0] *= cfg.target_image_size[0]
+    pts2d_project[:, 1] *= cfg.target_image_size[1]
     return pts2d_project, None, None
 
 
@@ -252,12 +255,13 @@ def landmark_smooth_3d(pts3d, smooth_sigma=0, area='only_mouth'):
         pts3d: [N, cfg.face_landmark_num, 3]
     '''
     # per-landmark smooth
+    mouth_pt_num = len(cfg.mouth_range)
     if not smooth_sigma == 0:
         if area == 'all':
             pts3d = gaussian_filter1d(pts3d.reshape(-1, cfg.face_landmark_num*3), smooth_sigma, axis=0).reshape(-1, cfg.face_landmark_num, 3)
         elif area == 'only_mouth':
             mouth_pts3d = pts3d[:, cfg.mouth_range, :].copy()
-            mouth_pts3d = gaussian_filter1d(mouth_pts3d.reshape(-1, 18*3), smooth_sigma, axis=0).reshape(-1, 18, 3)
+            mouth_pts3d = gaussian_filter1d(mouth_pts3d.reshape(-1, mouth_pt_num*3), smooth_sigma, axis=0).reshape(-1, mouth_pt_num, 3)
             pts3d = gaussian_filter1d(pts3d.reshape(-1, cfg.face_landmark_num*3), smooth_sigma, axis=0).reshape(-1, cfg.face_landmark_num, 3)
             pts3d[:, cfg.mouth_range, :] = mouth_pts3d
 
@@ -480,3 +484,12 @@ def show_image(image, wait=0, name="x", channel_reverse=True, points=None):
     cv.imshow(name, img)
     if wait is not None:
         cv.waitKey(wait)
+
+
+def parse_args_str(args_raw):
+    args_raw = args_raw.split(' ')
+    args = []
+    for x in args_raw:
+        if len(x.strip()) > 0:
+            args.append(x)
+    return args

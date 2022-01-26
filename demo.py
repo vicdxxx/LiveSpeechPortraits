@@ -87,35 +87,52 @@ if __name__ == '__main__':
     eye_brow_indices = cfg.eye_brow_indices
 
     ############################ Pre-defined Data #############################
-    mean_pts3d = np.load(join(data_root, 'mean_pts3d.npy'))
+    if cfg.DATASET_NAME == 'Vic':
+        clip_name = config['dataset_params']['clip_name']
+        mean_pts3d = np.load(join(data_root, clip_name, 'mean_pts3d.npy'))
+    else:
+        mean_pts3d = np.load(join(data_root, 'mean_pts3d.npy'))
     fit_data = np.load(config['dataset_params']['fit_data_path'])
     normalized_pts3d_fix_contour = np.load(config['dataset_params']['pts3d_path'])
+
+    # use_delta_pts
     pts3d = normalized_pts3d_fix_contour - mean_pts3d
+
     trans = fit_data['trans'][:, :, 0].astype(np.float32)
     mean_translation = trans.mean(axis=0)
     candidate_eye_brow = pts3d[10:, eye_brow_indices]
     std_mean_pts3d = normalized_pts3d_fix_contour.mean(axis=0)
     # candidates images
     img_candidates = []
+    transform = A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5), max_pixel_value=255.0)
     for j in range(4):
         output = imread(join(data_root, 'candidates', f'normalized_full_{j}.jpg'))
-        output = A.pytorch.transforms.ToTensor(normalize={'mean': (0.5, 0.5, 0.5),
-                                                          'std': (0.5, 0.5, 0.5)})(image=output)['image']
+
+        #output = A.pytorch.transforms.ToTensor(normalize={'mean': (0.5, 0.5, 0.5),
+        #                                                  'std': (0.5, 0.5, 0.5)})(image=output)['image']
+        output = transform.apply(image=output)
+        output = torch.from_numpy(output)
+        output = output.permute(2, 0, 1)
+
         img_candidates.append(output)
     img_candidates = torch.cat(img_candidates).unsqueeze(0).to(device)
 
-    # shoulders
-    shoulders = np.load(join(data_root, 'normalized_shoulder_points.npy'))
-    shoulder3D = np.load(join(data_root, 'shoulder_points3D.npy'))[1]
     ref_trans = trans[1]
 
-    # camera matrix, we always use training set intrinsic parameters.
-    camera = utils.camera()
-    camera_intrinsic = np.load(join(data_root, 'camera_intrinsic.npy')).astype(np.float32)
+    # shoulders
+    if cfg.DATASET_NAME == 'official':
+        shoulders = np.load(join(data_root, 'normalized_shoulder_points.npy'))
+        shoulder3D = np.load(join(data_root, 'shoulder_points3D.npy'))[1]
+
+    # camera matrix, we always use training set intrinsic parameters
+    if cfg.DATASET_NAME == 'official':
+        camera = utils.camera()
+        camera_intrinsic = np.load(join(data_root, 'camera_intrinsic.npy')).astype(np.float32)
+        scale = sio.loadmat(join(data_root, 'id_scale.mat'))['scale'][0, 0]
+
     APC_feat_database = np.load(join(data_root, 'APC_feature_base.npy'))
 
     # load reconstruction data
-    scale = sio.loadmat(join(data_root, 'id_scale.mat'))['scale'][0, 0]
     # Audio2Mel_torch = audio_funcs.Audio2Mel(n_fft=cfg.n_fft, hop_length=int(16000/120), win_length=int(16000/60), sampling_rate=16000,
     #                                         n_mel_channels=80, mel_fmin=90, mel_fmax=7600.0).to(device)
 
@@ -135,17 +152,34 @@ if __name__ == '__main__':
     save_feature_maps = config['model_params']['Image2Image']['save_input']
 
     # common settings
-    Featopt = FeatureOptions().parse()
-    Headopt = HeadposeOptions().parse()
-    Renderopt = RenderOptions().parse()
+    if cfg.DATASET_NAME == 'official':
+        Featopt = FeatureOptions().parse()
+        #args_raw = '--phase test --load_epoch 500 --eval'
+        #args = utils.parse_args_str(args_raw)
+        Headopt = HeadposeOptions().parse()
+        Renderopt = RenderOptions().parse()
+
+    elif cfg.DATASET_NAME == 'Vic':
+        args_raw = '--phase test --load_epoch 200 --eval'
+        args = utils.parse_args_str(args_raw)
+        Featopt = FeatureOptions().parse()
+
+        args_raw = '--phase test --test_dataset_names Vic'
+        args = utils.parse_args_str(args_raw)
+        Renderopt = RenderOptions().parse(args=args)
+
     Featopt.load_epoch = config['model_params']['Audio2Mouth']['ckp_path']
-    Headopt.load_epoch = config['model_params']['Headpose']['ckp_path']
+    if cfg.DATASET_NAME == 'official':
+        Headopt.load_epoch = config['model_params']['Headpose']['ckp_path']
     Renderopt.dataroot = config['dataset_params']['root']
     Renderopt.load_epoch = config['model_params']['Image2Image']['ckp_path']
     Renderopt.size = config['model_params']['Image2Image']['size']
     ## GPU or CPU
     if opt.device == 'cpu':
-        Featopt.gpu_ids = Headopt.gpu_ids = Renderopt.gpu_ids = []
+        Featopt.gpu_ids = []
+        if cfg.DATASET_NAME == 'official':
+            Headopt.gpu_ids = []
+        Renderopt.gpu_ids = []
 
     ############################# Load Models #################################
     print('---------- Loading Model: APC-------------')
@@ -161,15 +195,16 @@ if __name__ == '__main__':
     Audio2Feature = create_model(Featopt)
     Audio2Feature.setup(Featopt)
     Audio2Feature.eval()
-    print('---------- Loading Model: {} -------------'.format(Headopt.task))
-    Audio2Headpose = create_model(Headopt)
-    Audio2Headpose.setup(Headopt)
-    Audio2Headpose.eval()
-    if Headopt.feature_decoder == 'WaveNet':
-        if opt.device == 'cuda':
-            Headopt.A2H_receptive_field = Audio2Headpose.Audio2Headpose.module.WaveNet.receptive_field
-        else:
-            Headopt.A2H_receptive_field = Audio2Headpose.Audio2Headpose.WaveNet.receptive_field
+    if cfg.DATASET_NAME == 'official':
+        print('---------- Loading Model: {} -------------'.format(Headopt.task))
+        Audio2Headpose = create_model(Headopt)
+        Audio2Headpose.setup(Headopt)
+        Audio2Headpose.eval()
+        if Headopt.feature_decoder == 'WaveNet':
+            if opt.device == 'cuda':
+                Headopt.A2H_receptive_field = Audio2Headpose.Audio2Headpose.module.WaveNet.receptive_field
+            else:
+                Headopt.A2H_receptive_field = Audio2Headpose.Audio2Headpose.WaveNet.receptive_field
     print('---------- Loading Model: {} -------------'.format(Renderopt.task))
     facedataset = create_dataset(Renderopt)
     Feature2Face = create_model(Renderopt)
@@ -198,7 +233,7 @@ if __name__ == '__main__':
     if use_LLE:
         print('2. Manifold projection...')
         ind = utils.KNN_with_torch(audio_feats, APC_feat_database, K=Knear)
-        weights, feat_fuse = utils.compute_LLE_projection_all_frame(audio_feats, APC_feat_database, ind, audio_feats.shape[0])
+        _, feat_fuse = utils.compute_LLE_projection_all_frame(audio_feats, APC_feat_database, ind, audio_feats.shape[0])
         audio_feats = audio_feats * (1-LLE_percent) + feat_fuse * LLE_percent
 
     # 3. Audio2Mouth
@@ -208,12 +243,16 @@ if __name__ == '__main__':
     # 4. Audio2Headpose
     print('4. Headpose inference...')
     # set history headposes as zero
-    pre_headpose = np.zeros(Headopt.A2H_wavenet_input_channels, np.float32)
-    pred_Head = Audio2Headpose.generate_sequences(audio_feats, pre_headpose, fill_zero=True, sigma_scale=0.3, opt=Headopt)
+    if cfg.DATASET_NAME == 'official':
+        pre_headpose = np.zeros(Headopt.A2H_wavenet_input_channels, np.float32)
+        pred_Head = Audio2Headpose.generate_sequences(audio_feats, pre_headpose, fill_zero=True, sigma_scale=0.3, opt=Headopt)
 
     # 5. Post-Processing
     print('5. Post-processing...')
-    nframe = min(pred_Feat.shape[0], pred_Head.shape[0])
+    if cfg.DATASET_NAME == 'official':
+        nframe = min(pred_Feat.shape[0], pred_Head.shape[0])
+    elif cfg.DATASET_NAME == 'Vic':
+        nframe = pred_Feat.shape[0]
     pred_pts3d = np.zeros([nframe, cfg.face_landmark_num, 3])
     pred_pts3d[:, mouth_indices] = pred_Feat.reshape(-1, cfg.mouth_feature_num, 3)[:nframe]
 
@@ -242,7 +281,7 @@ if __name__ == '__main__':
         if cfg.DATASET_NAME == 'official':
             pred_landmarks[k], _, _ = utils.project_landmarks(camera_intrinsic, camera.relative_rotation, camera.relative_translation, scale, pred_headpose[k], final_pts3d[k])
         elif cfg.DATASET_NAME == 'Vic':
-            pred_landmarks[k], _, _ = utils.project_landmarks_orthogonal(camera_intrinsic, camera.relative_rotation, camera.relative_translation, scale, pred_headpose[k], final_pts3d[k])
+            pred_landmarks[k], _, _ = utils.project_landmarks_orthogonal(final_pts3d[k])
         else:
             assert 0
 

@@ -30,16 +30,17 @@ class GMMLogLoss(nn.Module):
                 [: ,:, ncenter + ndim * ncenter : ncenter + ndim * 2 * ncenter] show the negative log sigma of each dimension of each gaussian
             target: [b, T, ndim], the ground truth target landmark data is shown here
         To maximize the log-likelihood equals to minimize the negative log-likelihood.
-        NOTE: It is unstable to directly compute the log results of sigma, e.g. ln(-0.1) as we need to clip the sigma results
-        into positive. Hence here we predict the negative log sigma results to avoid numerical instablility, which mean:
-            `` sigma = 1/exp(predict), predict = -ln(sigma) ``
+        NOTE: It is unstable to directly compute the log results of sigma, e.g. ln(-0.1) as we need to clip the sigma results into positive.
+        Hence here we predict the negative log sigma results to avoid numerical instablility, which mean:
+            `` predict = -ln(sigma) -> sigma = exp(-predict), or sigma = 1/exp(predict) ``
         Also, it will be just the 'B' term below!
         Currently we only implement single gaussian distribution, hence the first values of pred are meaningless.
         For single gaussian distribution:
-            L(mu, sigma) = -n/2 * ln(2pi * sigma^2) - 1 / (2 x sigma^2) * sum^n (x_i - mu)^2  (n for prediction times, n=1 for one frame, x_i for gt)
+            (n for prediction times, n=1 for one frame, x_i for gt)
+            L(mu, sigma) = -n/2 * ln(2pi * sigma^2) - 1 / (2 x sigma^2) * sum^n (x_i - mu)^2
                          = -1/2 * ln(2pi) - 1/2 * ln(sigma^2) - 1/(2 x sigma^2) * (x - mu)^2
-        == min -L(mu, sgima) = 0.5 x ln(2pi) + 0.5 x ln(sigma^2) + 1/(2 x sigma^2) * (x - mu)^2
-                             = 0.5 x ln_2PI + ln(sigma) + 0.5 x (MU_DIFF/sigma)^2
+        == min -L(mu, sgima) = 0.5 * ln(2pi) + 0.5 * ln(sigma^2) + 1/(2 * sigma^2) * (x - mu)^2
+                             = 0.5 * ln_2PI + ln(sigma) + 0.5 x (MU_DIFF/sigma)^2
                              = A - B + C
             In batch and Time sample, b and T are summed and averaged.
         '''
@@ -47,11 +48,12 @@ class GMMLogLoss(nn.Module):
         # read prediction paras
         mus = output[:, :, self.ncenter: (self.ncenter + self.ncenter * self.ndim)].view(b, T, self.ncenter, self.ndim)  # [b, T, ncenter, ndim]
 
+        #sigma = torch.exp(-gmm_params_cpu[:, ncenter + ncenter * ndim:]) * sigma_scale
         # apply min sigma
-        neg_log_sigmas_out = output[:, :, (self.ncenter + self.ncenter * self.ndim):].view(b, T, self.ncenter, self.ndim)  # [b, T, ncenter, ndim]
-        inv_sigmas_min = torch.ones(neg_log_sigmas_out.size()).cuda() * (1. / self.sigma_min)
-        inv_sigmas_min_log = torch.log(inv_sigmas_min)
-        neg_log_sigmas = torch.min(neg_log_sigmas_out, inv_sigmas_min_log)
+        neg_log_sigmas_pred = output[:, :, (self.ncenter + self.ncenter * self.ndim):].view(b, T, self.ncenter, self.ndim)  # [b, T, ncenter, ndim]
+        inv_sigmas_min = torch.ones(neg_log_sigmas_pred.size()).cuda() * (1. / self.sigma_min)
+        neg_log_sigmas_min = torch.log(inv_sigmas_min)
+        neg_log_sigmas = torch.min(neg_log_sigmas_pred, neg_log_sigmas_min)
 
         inv_sigmas = torch.exp(neg_log_sigmas)
         # replicate the target of ncenter to minus mu

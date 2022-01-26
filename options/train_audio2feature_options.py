@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
+import config as cfg
 from options.base_options_audio2feature import BaseOptions
 
 
@@ -35,7 +35,7 @@ class TrainOptions(BaseOptions):
         parser.add_argument('--gamma', type=float, default=0.2, help='step learning rate gamma')
         parser.add_argument('--lr_decay_iters', type=int, default=250, help='multiply by a gamma every lr_decay_iters iterations')
         parser.add_argument('--validate_epoch', type=int, default=50, help='validate model every some epochs, 0 for not validate during training')
-        parser.add_argument('--loss_smooth_weight', type=float, default=0, help='smooth loss weight, 0 for not use smooth loss')
+        parser.add_argument('--smooth_loss', type=int, default=0, help='use smooth loss weight, 0 for not use')
         parser.add_argument('--optimizer', type=str, default='AdamW', help='Adam, AdamW, RMSprop')
 
         # data augmentations

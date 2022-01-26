@@ -199,7 +199,8 @@ class BaseModel(ABC):
                 if epoch[-3:] == 'pkl':
                     load_path = epoch
                 else:
-                    load_filename = '%s_%s.pkl' % (epoch, name)
+                    #load_filename = '%s_%s.pkl' % (epoch, name)
+                    load_filename = '%s_%s.pkl' % (name, epoch)
                     load_path = os.path.join(self.save_dir, load_filename)
                 net = getattr(self, name)
 #                if isinstance(net, torch.nn.DataParallel):

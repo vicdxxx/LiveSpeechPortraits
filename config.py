@@ -29,6 +29,8 @@ if DATASET_NAME == 'official':
     mouth_feature_num = 25
     sr, FPS = 16000, 60
     mouth_indices = np.concatenate([np.arange(4, 11), np.arange(46, 64)])
+    mouth_range = range(46, 64)
+
     A2L_GMM_ndim = len(mouth_indices)*3
 
     eye_brow_indices = [27, 65, 28, 68, 29, 67, 30, 66, 31, 72, 32, 69, 33, 70, 34, 71]
@@ -52,7 +54,6 @@ if DATASET_NAME == 'official':
     lower_outer_lip = list(range(57, 52, -1))
     lower_mouth = [53, 54, 55, 56, 57, 58, 59, 60]
 
-    mouth_range = range(46, 64)
 
 elif DATASET_NAME == 'Vic':
     # new setting
@@ -72,6 +73,7 @@ elif DATASET_NAME == 'Vic':
     mouth_feature_num = 20
     sr, FPS = 16000, 22
     mouth_indices = np.concatenate([np.arange(48, 60), np.arange(60, 68)])
+    mouth_range = range(48, 68)
     A2L_GMM_ndim = len(mouth_indices)*3
 
     eye_brow_indices = np.concatenate([np.arange(17, 22), np.arange(22, 27)])
@@ -93,8 +95,6 @@ elif DATASET_NAME == 'Vic':
     lower_inner_lip = list(range(65, 67))
     upper_mouth = upper_outer_lip + upper_inner_lip
     lower_mouth = lower_outer_lip + lower_inner_lip
-
-    mouth_range = range(48, 68)
 
 else:
     assert 0

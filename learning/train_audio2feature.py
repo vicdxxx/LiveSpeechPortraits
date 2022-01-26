@@ -8,7 +8,6 @@ from options.train_audio2feature_options import TrainOptions as FeatureOptions
 from options.train_audio2headpose_options import TrainOptions as HeadposeOptions
 from options.train_feature2face_options import TrainOptions as RenderOptions
 from tqdm import tqdm
-from datasets.face_dataset import FaceDataset
 from datasets.audiovisual_dataset import AudioVisualDataset
 import torch
 from models import create_model
@@ -22,9 +21,12 @@ from funcs import utils
 from torch.utils.data import DataLoader
 import copy
 
-def generate_APC_feature(opt, config, data_root):
+only_generate_apc_features = True
+
+
+def generate_APC_feature(opt, config, dataset_root):
     # already has code in AudioVisualDataset -> need_deepfeats
-    device = torch.device('0')
+    device = torch.device(0)
     print('---------- Loading Model: APC-------------')
     APC_model = APC_encoder(config['model_params']['APC']['mel_dim'],
                             config['model_params']['APC']['hidden_size'],
@@ -38,11 +40,11 @@ def generate_APC_feature(opt, config, data_root):
 
     clip_names = ['clip_0', 'clip_1', 'clip_2', 'clip_3']
     for clip_name in clip_names:
-        clip_root = join(data_root, clip_name)
+        clip_root = join(dataset_root, clip_name)
         driving_audio = join(clip_root, clip_name+".mp3")
         # create the results folder
         audio_name = os.path.split(driving_audio)[1][:-4]
-        save_root = join(data_root, 'Vic', opt.id, audio_name)
+        save_root = join(dataset_root, 'Vic', opt.id, audio_name)
         if not os.path.exists(save_root):
             os.makedirs(save_root)
 
@@ -68,6 +70,26 @@ def generate_APC_feature(opt, config, data_root):
         np.save(APC_feature_path, audio_feats)
 
 
+def merge_APC_features_per_clip_to_one_file(opt, config, dataset_root):
+    clip_names = ['clip_0', 'clip_1', 'clip_2', 'clip_3']
+    APC_model_path = config['model_params']['APC']['ckp_path']
+    all_audio_feats = None
+    for i_clip, clip_name in enumerate(clip_names):
+        clip_root = join(dataset_root, clip_name)
+        APC_name = os.path.split(APC_model_path)[-1]
+        APC_feature_file = clip_name + '_APC_feature_{}.npy'.format(APC_name)
+        APC_feature_path = os.path.join(clip_root, APC_feature_file)
+        clip_audio_feats = np.load(APC_feature_path)
+        if i_clip == 0:
+            all_audio_feats = clip_audio_feats
+        else:
+            all_audio_feats = np.concatenate([all_audio_feats, clip_audio_feats], 0)
+    all_APC_feature_path = join(dataset_root, 'APC_feature_base.npy')
+    if os.path.exists(all_APC_feature_path):
+        os.remove(all_APC_feature_path)
+    np.save(all_APC_feature_path, all_audio_feats)
+
+
 def train():
     f_option = FeatureOptions()
     h_option = HeadposeOptions()
@@ -75,22 +97,18 @@ def train():
     # --continue_train --load_epoch 0 --epoch_count 0
     #  --sequence_length 240 --time_frame_length 240 --A2L_receptive_field 255
     #  --FPS 22 --sample_rate 16000
-    args_raw = f'--task Audio2Feature --model audio2feature --dataset_mode audiovisual --name Audio2Feature --gpu_ids 0 \
+    args_raw = '--task Audio2Feature --model audio2feature --dataset_mode audiovisual --name Audio2Feature --gpu_ids 0 \
         --dataset_names Vic --dataroot ./data \
         --frame_jump_stride 4 --num_threads 0 --batch_size 32 --serial_batches \
         --audio_encoder APC --feature_decoder LSTM --loss L2 \
         --dataset_type train \
-        --audioRF_history {cfg.FPS} --audioRF_future 0 --feature_dtype pts3d --ispts_norm 1 --use_delta_pts 1 --frame_future {cfg.frame_future} \
+        --audioRF_future 0 --feature_dtype pts3d --ispts_norm 1 --use_delta_pts 1 \
         --predict_length 1 --only_mouth 1 --verbose --suffix vic \
         --save_epoch_freq 50 --save_by_iter --phase train --re_transform 0 \
         --train_dataset_names train_list.txt --validate_dataset_names val_list.txt \
         --n_epochs 200 --lr_policy linear --lr 1e-4 --lr_final 1e-5 --n_epochs_decay 200 \
-        --validate_epoch 10 --loss_smooth_weight 0 --optimizer Adam'
-    args_raw = args_raw.split(' ')
-    args = []
-    for x in args_raw:
-        if len(x.strip()) > 0:
-            args.append(x)
+        --validate_epoch 10  --optimizer Adam'
+    args = utils.parse_args_str(args_raw)
     f_option.isTrain = True
     opt = f_option.parse(args=args)
 
@@ -112,9 +130,12 @@ def train():
 
     with open(join('./config_file/', opt.dataset_names + '.yaml')) as f:
         config = yaml.load(f)
-    data_root = opt.dataroot
 
-    #generate_APC_feature(opt, config, data_root, device)
+    if only_generate_apc_features:
+        dataset_root = os.path.join(opt.dataroot, opt.dataset_names)
+        #generate_APC_feature(opt, config, dataset_root)
+        merge_APC_features_per_clip_to_one_file(opt, config, dataset_root)
+        return
 
     print('---------- Create Model: {} -------------'.format(opt.task))
     #model = Audio2FeatureModel()
@@ -127,7 +148,6 @@ def train():
 
     opt.save_epoch_freq
     opt.save_by_iter
-    opt.loss_smooth_weight
     for i_epoch in range(opt.n_epochs):
         iter_cnt = 0
         train_iter = iter(dataloader)

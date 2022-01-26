@@ -43,7 +43,7 @@ class BaseOptions():
         self.parser.add_argument('--dataset_mode', type=str, default='face', help='chooses how datasets are loaded.')
         self.parser.add_argument('--dataroot', type=str, default='./data/')
         self.parser.add_argument('--isH5', type=int, default=1, help='whether to use h5py to save dataset')
-        self.parser.add_argument('--suffix', type=str, default='.jpg', help='image suffix')
+        self.parser.add_argument('--im_suffix', type=str, default='.jpg', help='image suffix')
         self.parser.add_argument('--isMask', type=int, default=0, help='use face mask')
         self.parser.add_argument('--serial_batches', action='store_true', help='if true, takes images in order to make batches, otherwise takes them randomly')
         self.parser.add_argument('--num_threads', default=0, type=int, help='# threads for loading data')
@@ -69,6 +69,7 @@ class BaseOptions():
         self.parser.add_argument('--fp16', type=int, default=0, help='train with AMP')
         self.parser.add_argument('--local_rank', type=int, default=0, help='local rank for distributed training')
         self.parser.add_argument('--verbose', action='store_true', help='if specified, print more debugging information')
+        self.parser.add_argument('--suffix', default='', type=str, help='customized suffix: opt.name = opt.name + suffix: e.g., {model}_{netG}_size{load_size}')
 
         self.initialized = True
 
@@ -88,6 +89,11 @@ class BaseOptions():
         self.opt.isTrain = self.isTrain   # train or test
 
         self.opt.gpu_ids = self.parse_str(self.opt.gpu_ids)
+
+        # process opt.suffix
+        if self.opt.suffix:
+            suffix = ('_' + self.opt.suffix.format(**vars(self.opt))) if self.opt.suffix != '' else ''
+            self.opt.name = self.opt.name + suffix
 
         # set gpu ids
         # if len(self.opt.gpu_ids) > 0:

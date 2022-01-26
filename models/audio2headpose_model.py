@@ -7,6 +7,7 @@ from . import networks
 from . import audio2headpose
 from .losses import GMMLogLoss, Sample_GMM
 import torch.nn as nn
+import config as cfg
 
 
 class Audio2HeadposeModel(BaseModel):

@@ -1,7 +1,7 @@
 import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-
+import config as cfg
 from options.base_options_feature2face import BaseOptions
 
 
@@ -32,7 +32,7 @@ class TrainOptions(BaseOptions):
         self.parser.add_argument('--frame_jump', type=int, default=1, help='jump frame for training, 1 for not jump')
         self.parser.add_argument('--epoch_count', type=int, default=0,
                                  help='the starting epoch count, we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>, ...')
-        self.parser.add_argument('--seq_max_len', type=int, default=120, help='maximum sequence clip frames sent to network per iteration')
+        self.parser.add_argument('--seq_max_len', type=int, default=cfg.FPS*2, help='maximum sequence clip frames sent to network per iteration')
 
         # for discriminators
         self.parser.add_argument('--no_discriminator', type=int, default=0, help='not use discriminator')

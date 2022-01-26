@@ -9,24 +9,27 @@ model_params:
         Knear: 10
         LLE_percent: 1
     Audio2Mouth:
-        ckp_path: './data/Vic/checkpoints/Audio2Feature.pkl'
+        #ckp_path: './data/Vic/checkpoints/Audio2Feature.pkl'
+        ckp_path: './checkpoints/Audio2Feature_vic/Audio2Feature_200.pkl'
         smooth: 2
         AMP: ['XYZ', 1.5, 1.5, 1.5]  # method, x, y, z
     Headpose:
-        ckp_path: './data/Vic/checkpoints/Audio2Headpose.pkl'
+        #ckp_path: './data/Vic/checkpoints/Audio2Headpose.pkl'
         sigma: 0.3
         smooth: [5, 10]    # rot, trans
         AMP: [0.5, 0.5]    # rot, trans
         shoulder_AMP: 0.5
     Image2Image:
-        ckp_path: './data/Vic/checkpoints/Feature2Face.pkl'
+        #ckp_path: './data/Vic/checkpoints/Feature2Face.pkl'
+        ckp_path: './checkpoints/Feature2Face_vic/Feature2Face_G_10.pkl'
         size: 'normal'
         save_input: 1
         
 
 dataset_params:
   root: './data/Vic/'
-  fit_data_path: './data/Vic/3d_fit_data.npz'
-  pts3d_path: './data/Vic/tracked3D_normalized_pts_fix_contour.npy'
+  clip_name: 'clip_1'
+  fit_data_path: './data/Vic/clip_1/3d_fit_data.npz'
+  pts3d_path: './data/Vic/clip_1/tracked3D_normalized_pts_fix_contour.npy'
 
 

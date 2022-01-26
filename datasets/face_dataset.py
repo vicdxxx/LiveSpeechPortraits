@@ -97,7 +97,7 @@ class FaceDataset(BaseDataset):
                     tgt_file = h5py.File(tgt_file_path, 'r')[clip_name]
                     image_length = len(tgt_file)
                 else:
-                    tgt_paths = list(map(lambda x: str(x), sorted(list(Path(clip_root).glob('*'+self.opt.suffix)), key=lambda x: int(x.stem))))
+                    tgt_paths = list(map(lambda x: str(x), sorted(list(Path(clip_root).glob('*'+self.opt.im_suffix)), key=lambda x: int(x.stem))))
                     image_length = len(tgt_paths)
                     self.tgts_paths[i] = tgt_paths
                 if not self.landmarks2D[i].shape[0] == image_length:

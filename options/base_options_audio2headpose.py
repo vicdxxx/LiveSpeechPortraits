@@ -34,9 +34,9 @@ class BaseOptions():
         parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints/', help='models are saved here')
 
         # data parameters
-        parser.add_argument('--FPS', type=str, default=60, help='video fps')
-        parser.add_argument('--sample_rate', type=int, default=16000, help='audio sample rate')
-        parser.add_argument('--audioRF_history', type=int, default=60, help='audio history receptive field length')
+        parser.add_argument('--FPS', type=str, default=cfg.FPS, help='video fps')
+        parser.add_argument('--sample_rate', type=int, default=cfg.sr, help='audio sample rate')
+        parser.add_argument('--audioRF_history', type=int, default=cfg.FPS, help='audio history receptive field length')
         parser.add_argument('--audioRF_future', type=int, default=0, help='audio future receptive field length')
         parser.add_argument('--feature_decoder', type=str, default='WaveNet', help='|WaveNet|LSTM|')
         parser.add_argument('--loss', type=str, default='GMM', help='|GMM|L2|')
