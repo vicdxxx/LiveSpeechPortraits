@@ -14,20 +14,22 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
-import torch
-from datasets.face_dataset import FaceDataset
-from tqdm import tqdm
-from options.train_audio2feature_options import TrainOptions as FeatureOptions
-from options.train_audio2headpose_options import TrainOptions as HeadposeOptions
-from options.train_feature2face_options import TrainOptions as RenderOptions
-from models.feature2face_model import Feature2FaceModel
-import argparse
-import config as cfg
-from torch.utils.data import DataLoader
-import copy
-from os.path import join
-import yaml
 from models import create_model
+import yaml
+from os.path import join
+import copy
+from torch.utils.data import DataLoader
+import config as cfg
+import argparse
+from models.feature2face_model import Feature2FaceModel
+from options.train_feature2face_options import TrainOptions as RenderOptions
+from options.train_audio2headpose_options import TrainOptions as HeadposeOptions
+from options.train_audio2feature_options import TrainOptions as FeatureOptions
+from tqdm import tqdm
+from datasets.face_dataset import FaceDataset
+import torch
+import traceback
+
 
 def train():
     f_option = FeatureOptions()
@@ -35,16 +37,16 @@ def train():
     r_option = RenderOptions()
 
     # --continue_train --load_epoch 0 --epoch_count 0
-    #--load_pretrain xxx --debug --fp16 1 --local_rank 1 --verbose
+    # --load_pretrain xxx --debug --fp16 1 --local_rank 1 --verbose
     #--continue_train --TTUR --no_html
-    #seq_max_len not use
+    # seq_max_len not use
     args_raw = f'--task Feature2Face --model feature2face --name Feature2Face --tf_log --gpu_ids 0\
         --dataset_mode face --dataset_names Vic --dataroot ./data \
         --isH5 1 --suffix .jpg --serial_batches --resize_or_crop scaleWidth  --no_flip 1 \
        --display_freq 100 --print_freq 10 --save_latest_freq 10 --save_epoch_freq 10 \
         --phase train --load_epoch latest --n_epochs_warm_up 5 \
         --n_epochs 100 --n_epochs_decay 100 --lr_decay_iters 1000 --lr_decay_gamma 0.25\
-        --beta1 0.5 --lr 1e-4 --lr_final 1e-5 --lr_policy linear --gan_mode ls --pool_size 1 --frame_jump 1 \
+        --beta1 0.9 --lr 1e-4 --lr_final 1e-5 --lr_policy linear --gan_mode ls --pool_size 1 --frame_jump 1 \
         --epoch_count 0 --seq_max_len {cfg.FPS*2}'
     args_raw = args_raw.split(' ')
     args = []
@@ -68,6 +70,7 @@ def train():
                                 num_workers=0,
                                 pin_memory=0,
                                 drop_last=True)
+    print("dataset image num:", dataset.__len__)
 
     with open(join('./config_file/', opt.dataset_names[0] + '.yaml')) as f:
         config = yaml.load(f)
@@ -89,9 +92,15 @@ def train():
                 iter_cnt += 1
                 model.set_input(data=batch)
                 model.optimize_parameters()
+                if iter_cnt % 10 == 0:
+                    print(f'iter_cnt: {iter_cnt}, loss_dict: {model.loss_dict}')
             except Exception as e:
-                print(f'exception: {e}')
+                trace_info = traceback.format_exc()
                 print(f'iter_cnt: {iter_cnt}, loss_dict: {model.loss_dict}')
+                print("exception: {}, trace_info: {}".format(e, trace_info))
+                if len(model.loss_dict) == 0:
+                    print("exception: {}, trace_info: {}".format(e, trace_info))
+                model.loss_dict = {}
                 break
         runned_epoch = i_epoch + 1
         if runned_epoch % opt.save_epoch_freq == 0:
@@ -101,9 +110,13 @@ def train():
                     val_batch = next(val_iter)
                     model.set_input(data=batch)
                     model.validate()
-                    print(f'val_batch loss_G: {model.loss_G}, loss_D: {model.loss_D}')
+                    print(f'val loss_dict: {model.loss_dict}')
                 except Exception as e:
-                    #print(f'exception: {e}')
+                    trace_info = traceback.format_exc()
+                    print("exception: {}, trace_info: {}".format(e, trace_info))
+                    if len(model.loss_dict) == 0:
+                        print("exception: {}, trace_info: {}".format(e, trace_info))
+                    model.loss_dict = {}
                     break
             # save mode
             model.save_networks(runned_epoch)

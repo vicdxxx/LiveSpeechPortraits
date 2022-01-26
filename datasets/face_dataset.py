@@ -116,7 +116,7 @@ class FaceDataset(BaseDataset):
 
                 tmp = []
                 candidates_num = 4
-                transform = A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5), max_pixel_value=255.0)
+                self.transform = A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5), max_pixel_value=255.0)
                 for j in range(candidates_num):
                     try:
                         output = imread(os.path.join(self.dataset_root, 'candidates', f'normalized_full_{j}.jpg'))
@@ -125,12 +125,12 @@ class FaceDataset(BaseDataset):
                         output = self.common_dataset_transform(imgc, i)
                         imsave(os.path.join(self.dataset_root, 'candidates', f'normalized_full_{j}.jpg'), output)
                     #output = A.pytorch.transforms.ToTensor(normalize={'mean': (0.5, 0.5, 0.5), 'std': (0.5, 0.5, 0.5)})(image=output)['image']
-                    output = transform.apply(image=output)
+                    output = self.transform.apply(image=output)
                     output = torch.from_numpy(output)
                     output = output.permute(2, 0, 1)
                     tmp.append(output)
                 self.full_cand[i] = torch.cat(tmp)
-                print(f'self.full_cand[i].shape: {self.full_cand[i].shape}')
+                #print(f'self.full_cand[i].shape: {self.full_cand[i].shape}')
                 # headpose
                 fit_data_path = os.path.join(clip_root, '3d_fit_data.npz')
                 fit_data = np.load(fit_data_path)
@@ -224,6 +224,9 @@ class FaceDataset(BaseDataset):
         landmarks[:, 1] += top
 
         tgt_image, points = tgt_image, landmarks
+        tgt_image = self.transform.apply(image=tgt_image)
+        tgt_image = torch.from_numpy(tgt_image)
+        tgt_image = tgt_image.permute(2, 0, 1)
 
         feature_map = self.get_feature_image(points, (self.opt.loadSize, self.opt.loadSize), shoulders,
                                              self.image_pad[dataset_index])[np.newaxis, :].astype(np.float32)/255.

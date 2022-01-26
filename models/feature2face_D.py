@@ -18,7 +18,10 @@ class Feature2Face_D(nn.Module):
         self.output_nc = opt.output_nc
 
         # define networks
-        self.netD = MultiscaleDiscriminator(23 + 3, opt.ndf, opt.n_layers_D, opt.num_D, not opt.no_ganFeat)
+        # 23 + 3
+        # 13 + 3
+        input_nc = 13 + 3
+        self.netD = MultiscaleDiscriminator(input_nc, opt.ndf, opt.n_layers_D, opt.num_D, not opt.no_ganFeat)
 
         print('---------- Discriminator networks initialized -------------')
         print('-----------------------------------------------------------')

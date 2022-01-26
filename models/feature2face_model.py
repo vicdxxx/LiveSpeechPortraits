@@ -142,7 +142,9 @@ class Feature2FaceModel(BaseModel):
                 self.loss_G = loss_G_GAN + loss_l1 + loss_vgg + loss_style + loss_FM  # + loss_maskL1
             self.scaler.scale(self.loss_G).backward()
 
-        self.loss_dict = {**self.loss_dict, **dict(zip(self.loss_names_G, [loss_l1, loss_vgg, loss_style, loss_G_GAN, loss_FM]))}
+        losses = [loss_l1, loss_vgg, loss_style, loss_G_GAN, loss_FM]
+        losses = [x.detach().cpu().numpy().tolist() for x in losses]
+        self.loss_dict.update({**self.loss_dict, **dict(zip(self.loss_names_G, losses))})
 
     def backward_D(self):
         """Calculate GAN loss for the discriminator"""
@@ -157,7 +159,9 @@ class Feature2FaceModel(BaseModel):
 
         self.loss_D = (loss_D_fake + loss_D_real) * 0.5
 
-        self.loss_dict = dict(zip(self.loss_names_D, [loss_D_real, loss_D_fake]))
+        losses = [loss_D_real, loss_D_fake]
+        losses = [x.detach().cpu().numpy().tolist() for x in losses]
+        self.loss_dict.update(dict(zip(self.loss_names_D, losses)))
 
         if not self.opt.fp16:
             self.loss_D.backward()
@@ -217,3 +221,23 @@ class Feature2FaceModel(BaseModel):
                 with autocast():
                     fake_pred = self.Feature2Face_G(input_feature_maps)
         return fake_pred
+
+    def validate(self):
+        """ validate process """
+        with torch.no_grad():
+            self.forward()
+            # update D
+            self.set_requires_grad(self.Feature2Face_D, False)  # enable backprop for D
+            if not self.opt.fp16:
+                self.backward_D()                # calculate gradients for D
+            else:
+                with autocast():
+                    self.backward_D()
+
+            # update G
+            self.set_requires_grad(self.Feature2Face_D, False)  # D requires no gradients when optimizing G
+            if not self.opt.fp16:
+                self.backward_G()                   # calculate graidents for G
+            else:
+                with autocast():
+                    self.backward_G()

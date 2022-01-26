@@ -220,6 +220,7 @@ def load_clip_h5_file(person_dir):
         if os.path.exists(img_file_path):
             os.remove(img_file_path)
         f = h5py.File(img_file_path, "w")
+        print(f'{clip_name} im_paths num: {len(im_paths)}')
         dset = f.create_dataset(clip_name, data=im_paths)
 
         img_file = h5py.File(img_file_path, 'r')[clip_name]
@@ -261,7 +262,7 @@ if __name__ == '__main__':
         person_dir = camera_dir
     else:
         person_dir = camera_dir
-        #person_dir = r"E:\Topic\ExpressionTransmission\LiveSpeechPortraits\data\Vic\clip_3"
+        #person_dir = join(camera_dir, 'clip_3')
     #load_change_paras(person_dir)
     load_clip_h5_file(person_dir)
     #load_3d_fit_data_and_normalize(person_dir)
