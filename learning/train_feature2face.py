@@ -71,7 +71,7 @@ def train():
     print("dataset image num:", dataset.__len__)
 
     with open(join('./config_file/', opt.dataset_names[0] + '.yaml')) as f:
-        config = yaml.load(f)
+        config = yaml.full_load(f)
     data_root = opt.dataroot
     opt.size = config['model_params']['Image2Image']['size']
 
