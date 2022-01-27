@@ -166,7 +166,7 @@ def train():
                 print(f'iter_cnt: {iter_cnt}, loss: {model.loss}')
                 break
         runned_epoch = i_epoch + 1
-        if runned_epoch % opt.save_epoch_freq == 0:
+        if runned_epoch % opt.save_epoch_freq == 0 or i_epoch == 0:
             val_iter = iter(val_dataloader)
             while 1:
                 try:

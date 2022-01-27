@@ -1,5 +1,7 @@
 tqdm
-librosa==0.7.0
+#librosa==0.7.0
+librosa==0.8.1
+#conda update ffmpeg
 scikit_image
 opencv_python==4.4.0.40
 opencv-python-headless==4.4.0.40

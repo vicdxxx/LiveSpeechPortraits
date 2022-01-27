@@ -38,7 +38,7 @@ warnings.filterwarnings("ignore")
 
 
 def write_video_with_audio(audio_path, output_path, prefix='pred_'):
-    fps, fourcc = 60, cv2.VideoWriter_fourcc(*'DIVX')
+    fps, fourcc = cfg.FPS, cv2.VideoWriter_fourcc(*'DIVX')
     video_tmp_path = join(save_root, 'tmp.avi')
     out = cv2.VideoWriter(video_tmp_path, fourcc, fps, (Renderopt.loadSize, Renderopt.loadSize))
     for j in tqdm(range(nframe), position=0, desc='writing video'):
@@ -62,7 +62,7 @@ if __name__ == '__main__':
     if cfg.DEBUG:
         #--save_intermediates 1
         #python demo.py --id Vic --driving_audio ./data/Input/vic.mp3 --device cuda
-        args_raw = '--id Vic --driving_audio ./data/Vic/clip_0/clip_0.mp3 --device cuda'
+        args_raw = '--id Vic --driving_audio ./data/Vic/clip_1/clip_1.wav --device cuda'
         args_raw = args_raw.split(' ')
         args = []
         for x in args_raw:
@@ -72,8 +72,11 @@ if __name__ == '__main__':
     else:
         opt = parser.parse_args()
     device = torch.device(opt.device)
-    with open(join('./config_file/', opt.id + '.yaml')) as f:
-        config = yaml.load(f)
+    config_path = join('./config_file/', opt.id + '.yaml')
+    print(f'config_path: {config_path}')
+    with open(config_path) as f:
+        #config = yaml.load(f)
+        config = yaml.full_load(f)
     data_root = join('./data/', opt.id)
     # create the results folder
     audio_name = os.path.split(opt.driving_audio)[1][:-4]
@@ -319,7 +322,10 @@ if __name__ == '__main__':
     # generate corresponding audio, reused for all results
     tmp_audio_path = join(save_root, 'tmp.wav')
     tmp_audio_clip = audio[: np.int32(nframe * sr / FPS)]
-    librosa.output.write_wav(tmp_audio_path, tmp_audio_clip, sr)
+
+    #librosa.output.write_wav(tmp_audio_path, tmp_audio_clip, sr)
+    import soundfile as sf
+    sf.write(tmp_audio_path, tmp_audio_clip, sr)
 
     final_path = join(save_root, audio_name + '.avi')
     write_video_with_audio(tmp_audio_path, final_path, 'pred_')
