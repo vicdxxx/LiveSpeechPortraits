@@ -60,13 +60,13 @@ class BaseOptions():
         parser.add_argument('--dataset_type', type=str, default='train')
 
         # data setting parameters
+        parser.add_argument('--use_delta_pts', type=int, default=1, help='whether use delta landmark representation')
         parser.add_argument('--FPS', type=str, default=cfg.FPS, help='video fps')
         parser.add_argument('--sample_rate', type=int, default=cfg.sr, help='audio sample rate')
         parser.add_argument('--audioRF_history', type=int, default=int(cfg.FPS), help='audio history receptive field length')
         parser.add_argument('--audioRF_future', type=int, default=0, help='audio future receptive field length')
         parser.add_argument('--feature_dtype', type=str, default='pts3d', help='|FW|pts3d|')
         parser.add_argument('--ispts_norm', type=int, default=1, help='use normalized 3d points.')
-        parser.add_argument('--use_delta_pts', type=int, default=1, help='whether use delta landmark representation')
         parser.add_argument('--frame_future', type=int, default=cfg.frame_future)
         parser.add_argument('--predict_length', type=int, default=1)
         parser.add_argument('--only_mouth', type=int, default=1)

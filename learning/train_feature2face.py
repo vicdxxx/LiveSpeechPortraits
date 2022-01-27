@@ -30,6 +30,7 @@ from datasets.face_dataset import FaceDataset
 import torch
 import traceback
 from funcs import utils
+from util.visualizer import Visualizer
 
 
 def train():
@@ -44,9 +45,9 @@ def train():
     args_raw = '--task Feature2Face --model feature2face --name Feature2Face --tf_log --gpu_ids 0\
         --dataset_mode face --dataset_names Vic --dataroot ./data \
         --isH5 1 --serial_batches --resize_or_crop scaleWidth  --no_flip 1 --suffix vic\
-       --display_freq 100 --print_freq 10 --save_latest_freq 10 --save_epoch_freq 10 \
+       --display_freq 100 --print_freq 10 --save_latest_freq 10 --save_epoch_freq 1 \
         --phase train --load_epoch latest --n_epochs_warm_up 5 \
-        --n_epochs 100 --n_epochs_decay 100 --lr_decay_iters 1000 --lr_decay_gamma 0.25\
+        --n_epochs 5 --n_epochs_decay 5 --lr_decay_iters 1000 --lr_decay_gamma 0.25\
         --beta1 0.9 --lr 1e-4 --lr_final 1e-5 --lr_policy linear --gan_mode ls --pool_size 1 --frame_jump 1 \
         --epoch_count 0'
     args = utils.parse_args_str(args_raw)
@@ -78,7 +79,7 @@ def train():
     #model = Feature2FaceModel()
     model = create_model(opt)
     model.setup(opt)
-
+    visualizer = Visualizer(opt)
     for i_epoch in range(opt.n_epochs):
         iter_cnt = 0
         train_iter = iter(dataloader)
@@ -86,20 +87,24 @@ def train():
         while 1:
             try:
                 batch = next(train_iter)
-                iter_cnt += 1
                 model.set_input(data=batch)
                 model.optimize_parameters()
-                if iter_cnt % 10 == 0:
+                runned_iter = iter_cnt + 1
+                if runned_iter % opt.display_freq == 0 or iter_cnt == 0:
+                    visualizer.display_current_results()
+                if iter_cnt % opt.print_freq == 0:
                     print(f'iter_cnt: {iter_cnt}, loss_dict: {model.loss_dict}')
+                iter_cnt += 1
             except Exception as e:
                 trace_info = traceback.format_exc()
-                print(f'iter_cnt: {iter_cnt}, loss_dict: {model.loss_dict}')
+                print("exception: {}, trace_info: {}".format(e, trace_info))
                 if len(model.loss_dict) == 0:
                     print("exception: {}, trace_info: {}".format(e, trace_info))
                 model.loss_dict = {}
                 break
         runned_epoch = i_epoch + 1
         if runned_epoch % opt.save_epoch_freq == 0 or i_epoch == 0:
+
             val_iter = iter(val_dataloader)
             while 1:
                 try:

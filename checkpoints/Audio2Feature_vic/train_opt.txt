@@ -28,7 +28,7 @@ audiofeature_input_channels: 80
               epoch_count: 0                             
           feature_decoder: LSTM                          
             feature_dtype: pts3d                         
-             frame_future: 7                             
+             frame_future: 0                             
         frame_jump_stride: 4                             
                     gamma: 0.2                           
            gaussian_noise: 1                             
@@ -54,7 +54,6 @@ audiofeature_input_channels: 80
            predict_length: 1                             
              re_transform: 0                             
               sample_rate: 16000                         
-             save_by_iter: True                          	[default: False]
           save_epoch_freq: 50                            	[default: 5]
           sequence_length: 90                            
            serial_batches: True                          	[default: False]

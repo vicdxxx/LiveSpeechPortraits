@@ -12,6 +12,16 @@ target_image_size = (512, 512)
 net_hidden_size = 512
 audio_feature_size = 512
 
+demo_use_feature2face_model = False
+
+candidate_im_num = 4
+feature_map_num = 1
+target_im_num = 1
+Feature2Face_G_input_channel_num = feature_map_num + candidate_im_num*3
+Feature2Face_D_input_channel_num = feature_map_num + (target_im_num + candidate_im_num)*3
+
+use_VGG_relavant_loss = 1
+
 if DATASET_NAME == 'official':
     # official setting
     # use 73 face landmarks
@@ -63,7 +73,7 @@ elif DATASET_NAME == 'Vic':
     time_frame_length = 90
     A2L_receptive_field = 100
     A2H_receptive_field = 100
-    frame_future = 7
+    frame_future = 0
 
     A2L_GMM_ndim = 20*3
     n_fft = 1024

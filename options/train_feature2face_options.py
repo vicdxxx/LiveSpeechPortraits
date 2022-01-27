@@ -10,7 +10,7 @@ class TrainOptions(BaseOptions):
         BaseOptions.initialize(self)
         # training flags
         self.parser.add_argument('--display_freq', type=int, default=10, help='frequency of showing training results on screen(iterations)')
-        self.parser.add_argument('--print_freq', type=int, default=10, help='frequency of showing training results on console(epochs)')
+        self.parser.add_argument('--print_freq', type=int, default=10, help='frequency of showing training results on console(iterations)')
         self.parser.add_argument('--save_latest_freq', type=int, default=100, help='frequency of to save the latest results(iterations)')
         self.parser.add_argument('--save_epoch_freq', type=int, default=1, help='frequency of saving checkpoints at the end of epochs')
         self.parser.add_argument('--continue_train', default=False, action='store_true', help='continue training: load the latest model')

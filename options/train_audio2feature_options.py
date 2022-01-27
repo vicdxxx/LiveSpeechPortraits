@@ -16,7 +16,6 @@ class TrainOptions(BaseOptions):
 
         # network saving and loading parameters
         parser.add_argument('--save_epoch_freq', type=int, default=5, help='frequency of saving checkpoints at the end of epochs')
-        parser.add_argument('--save_by_iter', action='store_true', help='whether saves model by iteration')
         parser.add_argument('--continue_train', default=False, action='store_true', help='continue training: load the latest model')
         parser.add_argument('--load_epoch', type=str, default='200', help='which epoch to load? set to latest to use latest cached model')
         parser.add_argument('--epoch_count', type=int, default=0,

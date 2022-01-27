@@ -34,6 +34,7 @@ class BaseOptions():
         parser.add_argument('--checkpoints_dir', type=str, default='./checkpoints/', help='models are saved here')
 
         # data parameters
+        parser.add_argument('--use_delta_trans', type=int, default=1, help='whether use delta landmark representation')
         parser.add_argument('--FPS', type=str, default=cfg.FPS, help='video fps')
         parser.add_argument('--sample_rate', type=int, default=cfg.sr, help='audio sample rate')
         parser.add_argument('--audioRF_history', type=int, default=cfg.FPS, help='audio history receptive field length')

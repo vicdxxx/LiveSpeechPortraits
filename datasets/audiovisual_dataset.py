@@ -43,24 +43,26 @@ class AudioVisualDataset(BaseDataset):
         self.frame_jump_stride = opt.frame_jump_stride
         self.augment = False
         self.task = opt.task
-        self.item_length_audio = int((self.audioRF_history + self.audioRF_future) / self.fps * self.sample_rate)
+        #self.item_length_audio = int((self.audioRF_history + self.audioRF_future) / self.fps * self.sample_rate)
 
         if self.task == 'Audio2Feature':
-            if opt.feature_decoder == 'WaveNet':
-                self.A2L_receptive_field = opt.A2L_receptive_field
-                self.A2L_item_length = self.A2L_receptive_field + self.target_length - 1
-            elif opt.feature_decoder == 'LSTM':
-                self.A2L_receptive_field = 30
-                self.A2L_item_length = self.A2L_receptive_field + self.target_length - 1
+            pass
+            #if opt.feature_decoder == 'WaveNet':
+            #    self.A2L_receptive_field = opt.A2L_receptive_field
+            #    self.A2L_item_length = self.A2L_receptive_field + self.target_length - 1
+            #elif opt.feature_decoder == 'LSTM':
+            #    self.A2L_receptive_field = int(opt.A2L_receptive_field // 8.5)
+            #    self.A2L_item_length = self.A2L_receptive_field + self.target_length - 1
+
         elif self.task == 'Audio2Headpose':
             self.A2H_receptive_field = opt.A2H_receptive_field
             self.A2H_item_length = self.A2H_receptive_field + self.target_length - 1
             self.audio_window = opt.audio_windows
             self.half_audio_win = int(self.audio_window / 2)
 
-        self.frame_future = opt.frame_future
-        self.predict_length = opt.predict_length
-        self.predict_len = int((self.predict_length - 1) / 2)
+            self.frame_future = opt.frame_future
+            self.predict_length = opt.predict_length
+            self.predict_len = int((self.predict_length - 1) / 2)
 
         self.gpu_ids = opt.gpu_ids
         self.device = torch.device('cuda:{}'.format(self.gpu_ids[0])) if self.gpu_ids else torch.device('cpu')
@@ -86,9 +88,9 @@ class AudioVisualDataset(BaseDataset):
                 self.indices = self.mouth_related_indices
             else:
                 self.indices = np.arange(cfg.face_landmark_num)
-        if opt.use_delta_pts:
-            #self.pts3d_mean = np.load(os.path.join(self.dataset_root, 'mean_pts3d.npy'))
-            self.pts3d_mean = [None] * self.clip_nums
+            if opt.use_delta_pts:
+                #self.pts3d_mean = np.load(os.path.join(self.dataset_root, 'mean_pts3d.npy'))
+                self.pts3d_mean = [None] * self.clip_nums
 
         for i in range(self.clip_nums):
             name = self.clip_names[i]
@@ -100,8 +102,9 @@ class AudioVisualDataset(BaseDataset):
             else:
                 audio_path = os.path.join(clip_root, name + cfg.audio_extension)
 
-            if opt.use_delta_pts:
-                self.pts3d_mean[i] = np.load(os.path.join(clip_root, 'mean_pts3d.npy'))
+            if self.task == 'Audio2Feature':
+                if opt.use_delta_pts:
+                    self.pts3d_mean[i] = np.load(os.path.join(clip_root, 'mean_pts3d.npy'))
 
             if self.opt.audio_encoder == 'APC':
                 APC_name = os.path.split(self.opt.APC_model_path)[-1]
@@ -117,37 +120,41 @@ class AudioVisualDataset(BaseDataset):
             # 3D landmarks & headposes
             if self.task == 'Audio2Feature':
                 self.start_point[i] = 0
-            elif self.task == 'Audio2Headpose':
-                self.start_point[i] = 300
-            fit_data_path = os.path.join(clip_root, '3d_fit_data.npz')
-            fit_data = np.load(fit_data_path)
-            if not opt.ispts_norm:
-                ori_pts3d = fit_data['pts_3d'].astype(np.float32)
-            else:
-                ori_pts3d = np.load(os.path.join(clip_root, 'tracked3D_normalized_pts_fix_contour.npy'))
-            if opt.use_delta_pts:
-                #self.pts3d[i] = ori_pts3d - self.pts3d_mean
-                self.pts3d[i] = ori_pts3d - self.pts3d_mean[i]
-            else:
-                self.pts3d[i] = ori_pts3d
-            if opt.feature_dtype == 'pts3d':
-                self.feats[i] = self.pts3d[i]
-            elif opt.feature_dtype == 'FW':
-                track_data_path = os.path.join(clip_root, 'tracking_results.mat')
-                self.feats[i] = sio.loadmat(track_data_path)['exps'].astype(np.float32)
-            self.rot_angles[i] = fit_data['rot_angles'].astype(np.float32)
-            # change -180~180 to 0~360
-            #if not self.dataset_name == 'Yuxuan':
-            #    rot_change = self.rot_angles[i][:, 0] < 0
-            #    self.rot_angles[i][rot_change, 0] += 360
-            #    self.rot_angles[i][:, 0] -= 180   # change x axis direction
-            # use delta translation
-            self.mean_trans[i] = fit_data['trans'][:, :, 0].astype(np.float32).mean(axis=0)
-            self.trans[i] = fit_data['trans'][:, :, 0].astype(np.float32) - self.mean_trans[i]
+                fit_data_path = os.path.join(clip_root, '3d_fit_data.npz')
+                fit_data = np.load(fit_data_path)
+                if not opt.ispts_norm:
+                    ori_pts3d = fit_data['pts_3d'].astype(np.float32)
+                else:
+                    ori_pts3d = np.load(os.path.join(clip_root, 'tracked3D_normalized_pts_fix_contour.npy'))
 
-            self.headposes[i] = np.concatenate([self.rot_angles[i], self.trans[i]], axis=1)
-            self.velocity_pose[i] = np.concatenate([np.zeros(6)[None, :], self.headposes[i][1:] - self.headposes[i][:-1]])
-            self.acceleration_pose[i] = np.concatenate([np.zeros(6)[None, :], self.velocity_pose[i][1:] - self.velocity_pose[i][:-1]])
+                if opt.use_delta_pts:
+                    #self.pts3d[i] = ori_pts3d - self.pts3d_mean
+                    self.pts3d[i] = ori_pts3d - self.pts3d_mean[i]
+                else:
+                    self.pts3d[i] = ori_pts3d
+                if opt.feature_dtype == 'pts3d':
+                    self.feats[i] = self.pts3d[i]
+                elif opt.feature_dtype == 'FW':
+                    track_data_path = os.path.join(clip_root, 'tracking_results.mat')
+                    self.feats[i] = sio.loadmat(track_data_path)['exps'].astype(np.float32)
+            elif self.task == 'Audio2Headpose':
+                #self.start_point[i] = 300
+                self.start_point[i] = self.A2H_receptive_field
+                self.rot_angles[i] = fit_data['rot_angles'].astype(np.float32)
+                # change -180~180 to 0~360
+                #if not self.dataset_name == 'Yuxuan':
+                #    rot_change = self.rot_angles[i][:, 0] < 0
+                #    self.rot_angles[i][rot_change, 0] += 360
+                #    self.rot_angles[i][:, 0] -= 180   # change x axis direction
+                # use delta translation
+                if opt.use_delta_trans:
+                    self.mean_trans[i] = fit_data['trans'][:, :, 0].astype(np.float32).mean(axis=0)
+                    self.trans[i] = fit_data['trans'][:, :, 0].astype(np.float32) - self.mean_trans[i]
+                else:
+                    self.trans[i] = fit_data['trans'][:, :, 0].astype(np.float32)
+                self.headposes[i] = np.concatenate([self.rot_angles[i], self.trans[i]], axis=1)
+                self.velocity_pose[i] = np.concatenate([np.zeros(6)[None, :], self.headposes[i][1:] - self.headposes[i][:-1]])
+                self.acceleration_pose[i] = np.concatenate([np.zeros(6)[None, :], self.velocity_pose[i][1:] - self.velocity_pose[i][:-1]])
 
             if self.dataset_name == 'Yuxuan':
                 total_frames = self.feats[i].shape[0] - 300 - 130
@@ -192,14 +199,16 @@ class AudioVisualDataset(BaseDataset):
         self.audio = [''] * self.clip_nums
         self.audio_features = [''] * self.clip_nums
         self.feats = [''] * self.clip_nums
-        self.exps = [''] * self.clip_nums
-        self.pts3d = [''] * self.clip_nums
-        self.rot_angles = [''] * self.clip_nums
-        self.trans = [''] * self.clip_nums
-        self.headposes = [''] * self.clip_nums
-        self.velocity_pose = [''] * self.clip_nums
-        self.acceleration_pose = [''] * self.clip_nums
-        self.mean_trans = [''] * self.clip_nums
+        if self.task == 'Audio2Feature':
+            self.pts3d = [''] * self.clip_nums
+        elif self.task == 'Audio2Headpose':
+            self.rot_angles = [''] * self.clip_nums
+            self.trans = [''] * self.clip_nums
+            self.mean_trans = [''] * self.clip_nums
+            self.headposes = [''] * self.clip_nums
+            self.velocity_pose = [''] * self.clip_nums
+            self.acceleration_pose = [''] * self.clip_nums
+
         if self.state == 'test':
             self.landmarks = [''] * self.clip_nums
         # meta info

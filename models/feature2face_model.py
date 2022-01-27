@@ -9,7 +9,7 @@ from . import networks
 from . import feature2face_G
 from .base_model import BaseModel
 from .losses import GANLoss, MaskedL1Loss, VGGLoss
-
+import config as cfg
 
 class Feature2FaceModel(BaseModel):
     def __init__(self, opt):
@@ -38,8 +38,9 @@ class Feature2FaceModel(BaseModel):
             # criterion
             self.criterionMaskL1 = MaskedL1Loss().cuda()
             self.criterionL1 = nn.L1Loss().cuda()
-            self.criterionVGG = VGGLoss()
-            self.criterionVGG = self.criterionVGG.cuda()
+            if cfg.use_VGG_relavant_loss:
+                self.criterionVGG = VGGLoss()
+                self.criterionVGG = self.criterionVGG.cuda()
             self.criterionFlow = nn.L1Loss().cuda()
 
             # initialize optimizer G
@@ -107,7 +108,7 @@ class Feature2FaceModel(BaseModel):
         self.feature_map = self.feature_map.to(self.device)
         self.cand_image = self.cand_image.to(self.device)
         self.tgt_image = self.tgt_image.to(self.device)
-        #self.facial_mask = self.facial_mask.to(self.device)
+        self.facial_mask = self.facial_mask.to(self.device)
 
     def forward(self):
         ''' forward pass for feature2Face
@@ -125,21 +126,27 @@ class Feature2FaceModel(BaseModel):
         loss_G_GAN = self.criterionGAN(pred_fake, True)
         # L1, vgg, style loss
         loss_l1 = self.criterionL1(self.fake_pred, self.tgt_image) * self.opt.lambda_L1
-#        loss_maskL1 = self.criterionMaskL1(self.fake_pred, self.tgt_image, self.facial_mask * self.opt.lambda_mask)
-        loss_vgg, loss_style = self.criterionVGG(self.fake_pred, self.tgt_image, style=True)
-        loss_vgg = torch.mean(loss_vgg) * self.opt.lambda_feat
-        loss_style = torch.mean(loss_style) * self.opt.lambda_feat
+        loss_maskL1 = self.criterionMaskL1(self.fake_pred, self.tgt_image, self.facial_mask * self.opt.lambda_mask)
+
+        if cfg.use_VGG_relavant_loss:
+            loss_vgg, loss_style = self.criterionVGG(self.fake_pred, self.tgt_image, style=True)
+            loss_vgg = torch.mean(loss_vgg) * self.opt.lambda_feat
+            loss_style = torch.mean(loss_style) * self.opt.lambda_feat
+        else:
+            loss_vgg = 0
+            loss_style = 0
+
         # feature matching loss
         loss_FM = self.compute_FeatureMatching_loss(pred_fake, pred_real)
 
         # combine loss and calculate gradients
 
         if not self.opt.fp16:
-            self.loss_G = loss_G_GAN + loss_l1 + loss_vgg + loss_style + loss_FM  # + loss_maskL1
+            self.loss_G = loss_G_GAN + loss_l1 + loss_vgg + loss_style + loss_FM + loss_maskL1
             self.loss_G.backward()
         else:
             with autocast():
-                self.loss_G = loss_G_GAN + loss_l1 + loss_vgg + loss_style + loss_FM  # + loss_maskL1
+                self.loss_G = loss_G_GAN + loss_l1 + loss_vgg + loss_style + loss_FM + loss_maskL1
             self.scaler.scale(self.loss_G).backward()
 
         losses = [loss_l1, loss_vgg, loss_style, loss_G_GAN, loss_FM]

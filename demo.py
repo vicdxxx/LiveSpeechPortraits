@@ -61,8 +61,8 @@ if __name__ == '__main__':
     # load config files
     if cfg.DEBUG:
         #--save_intermediates 1
-        #python demo.py --id Vic --driving_audio ./data/Input/vic.mp3 --device cuda
-        args_raw = '--id Vic --driving_audio ./data/Vic/clip_1/clip_1.wav --device cuda'
+        args_raw = '--id Vic --driving_audio ./data/Input/00083.wav --device cuda'
+        #args_raw = '--id Vic --driving_audio ./data/Vic/clip_1/clip_1.wav --device cuda'
         args_raw = args_raw.split(' ')
         args = []
         for x in args_raw:
@@ -70,6 +70,7 @@ if __name__ == '__main__':
                 args.append(x)
         opt = parser.parse_args(args)
     else:
+        #python demo.py --id Vic --driving_audio ./data/Vic/clip_0/clip_0.wav --device cuda --save_intermediates 1
         opt = parser.parse_args()
     device = torch.device(opt.device)
     config_path = join('./config_file/', opt.id + '.yaml')
@@ -84,27 +85,44 @@ if __name__ == '__main__':
     if not os.path.exists(save_root):
         os.makedirs(save_root)
 
+    # common settings
+    if cfg.DATASET_NAME == 'official':
+        Featopt = FeatureOptions().parse()
+        #args_raw = '--phase test --load_epoch 500 --eval'
+        #args = utils.parse_args_str(args_raw)
+        Headopt = HeadposeOptions().parse()
+        Renderopt = RenderOptions().parse()
+
+    elif cfg.DATASET_NAME == 'Vic':
+        args_raw = '--phase test --load_epoch 200 --eval'
+        args = utils.parse_args_str(args_raw)
+        Featopt = FeatureOptions().parse()
+
+        args_raw = '--phase test --test_dataset_names Vic'
+        args = utils.parse_args_str(args_raw)
+        Renderopt = RenderOptions().parse(args=args)
     ############################ Hyper Parameters #############################
     h, w, sr, FPS = cfg.target_image_size[1], cfg.target_image_size[0], cfg.sr, cfg.FPS
     mouth_indices = cfg.mouth_indices
     eye_brow_indices = cfg.eye_brow_indices
 
     ############################ Pre-defined Data #############################
-    if cfg.DATASET_NAME == 'Vic':
-        clip_name = config['dataset_params']['clip_name']
-        mean_pts3d = np.load(join(data_root, clip_name, 'mean_pts3d.npy'))
-    else:
-        mean_pts3d = np.load(join(data_root, 'mean_pts3d.npy'))
-    fit_data = np.load(config['dataset_params']['fit_data_path'])
-    normalized_pts3d_fix_contour = np.load(config['dataset_params']['pts3d_path'])
+    if Featopt.use_delta_pts:
+        if cfg.DATASET_NAME == 'Vic':
+            clip_name = config['dataset_params']['clip_name']
+            mean_pts3d = np.load(join(data_root, clip_name, 'mean_pts3d.npy'))
+        else:
+            mean_pts3d = np.load(join(data_root, 'mean_pts3d.npy'))
+        normalized_pts3d_fix_contour = np.load(config['dataset_params']['pts3d_path'])
+        pts3d = normalized_pts3d_fix_contour - mean_pts3d
+        candidate_eye_brow = pts3d[10:, eye_brow_indices]
+        std_mean_pts3d = normalized_pts3d_fix_contour.mean(axis=0)
 
-    # use_delta_pts
-    pts3d = normalized_pts3d_fix_contour - mean_pts3d
+    if Featopt.use_delta_pts:
+        fit_data = np.load(config['dataset_params']['fit_data_path'])
+        trans = fit_data['trans'][:, :, 0].astype(np.float32)
+        mean_translation = trans.mean(axis=0)
 
-    trans = fit_data['trans'][:, :, 0].astype(np.float32)
-    mean_translation = trans.mean(axis=0)
-    candidate_eye_brow = pts3d[10:, eye_brow_indices]
-    std_mean_pts3d = normalized_pts3d_fix_contour.mean(axis=0)
     # candidates images
     img_candidates = []
     transform = A.augmentations.transforms.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5), max_pixel_value=255.0)
@@ -154,22 +172,6 @@ if __name__ == '__main__':
     shoulder_AMP = config['model_params']['Headpose']['shoulder_AMP']
     save_feature_maps = config['model_params']['Image2Image']['save_input']
 
-    # common settings
-    if cfg.DATASET_NAME == 'official':
-        Featopt = FeatureOptions().parse()
-        #args_raw = '--phase test --load_epoch 500 --eval'
-        #args = utils.parse_args_str(args_raw)
-        Headopt = HeadposeOptions().parse()
-        Renderopt = RenderOptions().parse()
-
-    elif cfg.DATASET_NAME == 'Vic':
-        args_raw = '--phase test --load_epoch 200 --eval'
-        args = utils.parse_args_str(args_raw)
-        Featopt = FeatureOptions().parse()
-
-        args_raw = '--phase test --test_dataset_names Vic'
-        args = utils.parse_args_str(args_raw)
-        Renderopt = RenderOptions().parse(args=args)
 
     Featopt.load_epoch = config['model_params']['Audio2Mouth']['ckp_path']
     if cfg.DATASET_NAME == 'official':
@@ -262,7 +264,8 @@ if __name__ == '__main__':
     # mouth
     pred_pts3d = utils.landmark_smooth_3d(pred_pts3d, Feat_smooth_sigma, area='only_mouth')
     pred_pts3d = utils.mouth_pts_AMP(pred_pts3d, True, AMP_method, Feat_AMPs)
-    pred_pts3d = pred_pts3d + mean_pts3d
+    if Featopt.use_delta_pts:
+        pred_pts3d = pred_pts3d + mean_pts3d
     pred_pts3d = utils.solve_intersect_mouth(pred_pts3d)  # solve intersect lips if exist
 
     # headpose
@@ -270,7 +273,8 @@ if __name__ == '__main__':
         pred_Head[:, 0:3] *= rot_AMP
         pred_Head[:, 3:6] *= trans_AMP
         pred_headpose = utils.headpose_smooth(pred_Head[:, :6], Head_smooth_sigma).astype(np.float32)
-        pred_headpose[:, 3:] += mean_translation
+        if Headopt.use_delta_trans:
+            pred_headpose[:, 3:] += mean_translation
         pred_headpose[:, 0] += 180
 
     # compute projected landmarks
@@ -282,7 +286,8 @@ if __name__ == '__main__':
         ind = k % candidate_eye_brow.shape[0]
         final_pts3d[k, eye_brow_indices] = candidate_eye_brow[ind] + mean_pts3d[eye_brow_indices]
         if cfg.DATASET_NAME == 'official':
-            pred_landmarks[k], _, _ = utils.project_landmarks(camera_intrinsic, camera.relative_rotation, camera.relative_translation, scale, pred_headpose[k], final_pts3d[k])
+            pred_landmarks[k], _, _ = utils.project_landmarks(camera_intrinsic, camera.relative_rotation, camera.relative_translation, scale,
+                                                              pred_headpose[k], final_pts3d[k])
         elif cfg.DATASET_NAME == 'Vic':
             pred_landmarks[k], _, _ = utils.project_landmarks_orthogonal(final_pts3d[k])
         else:
@@ -309,12 +314,15 @@ if __name__ == '__main__':
         elif cfg.DATASET_NAME == 'Vic':
             current_pred_feature_map = facedataset.dataset.get_data_test_mode(pred_landmarks[ind], None, facedataset.dataset.image_pad)
 
+        visual_list = []
         input_feature_maps = current_pred_feature_map.unsqueeze(0).to(device)
-        pred_fake = Feature2Face.inference(input_feature_maps, img_candidates)
-        # save results
-        visual_list = [('pred', util.tensor2im(pred_fake[0]))]
         if save_feature_maps:
             visual_list += [('input', np.uint8(current_pred_feature_map[0].cpu().numpy() * 255))]
+
+        if cfg.demo_use_feature2face_model:
+            pred_fake = Feature2Face.inference(input_feature_maps, img_candidates)
+            visual_list += [('pred', util.tensor2im(pred_fake[0]))]
+
         visuals = OrderedDict(visual_list)
         visualizer.save_images(save_root, visuals, str(ind+1))
 
@@ -327,10 +335,11 @@ if __name__ == '__main__':
     import soundfile as sf
     sf.write(tmp_audio_path, tmp_audio_clip, sr)
 
-    final_path = join(save_root, audio_name + '.avi')
-    write_video_with_audio(tmp_audio_path, final_path, 'pred_')
     feature_maps_path = join(save_root, audio_name + '_feature_maps.avi')
     write_video_with_audio(tmp_audio_path, feature_maps_path, 'input_')
+    if cfg.demo_use_feature2face_model:
+        final_path = join(save_root, audio_name + '.avi')
+        write_video_with_audio(tmp_audio_path, final_path, 'pred_')
 
     if os.path.exists(tmp_audio_path):
         os.remove(tmp_audio_path)

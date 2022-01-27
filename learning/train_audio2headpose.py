@@ -40,7 +40,7 @@ def train():
     f_option = FeatureOptions()
     h_option = HeadposeOptions()
     r_option = RenderOptions()
-    # --save_by_iter --continue_train
+    # --continue_train
     # --serial_batches --verbose
     # not use --re_transform --gaussian_noise 1 --gaussian_noise_scale 0.01
     args_raw = '--task Audio2Headpose --model audio2headpose --dataset_mode audiovisual \

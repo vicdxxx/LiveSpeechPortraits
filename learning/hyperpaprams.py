@@ -264,9 +264,9 @@ if __name__ == '__main__':
         person_dir = camera_dir
     else:
         person_dir = camera_dir
-        #person_dir = join(camera_dir, 'clip_3')
+        person_dir = join(camera_dir, 'clip_0')
     #load_change_paras(person_dir)
-    load_clip_h5_file(person_dir)
-    #load_3d_fit_data_and_normalize(person_dir)
+    #load_clip_h5_file(person_dir)
+    load_3d_fit_data_and_normalize(person_dir)
     # load_tracked_normalized_pts(person_dir)
     pass

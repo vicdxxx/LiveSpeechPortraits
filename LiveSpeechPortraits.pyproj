@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{87000fdb-e678-453c-9779-7ee42066a126}</ProjectGuid>
     <ProjectHome />
-    <StartupFile>demo.py</StartupFile>
+    <StartupFile>learning\train_feature2face.py</StartupFile>
     <SearchPath />
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
@@ -21,6 +21,12 @@
     <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="config_file\May.yaml" />
+    <Content Include="config_file\McStay.yaml" />
+    <Content Include="config_file\Nadella.yaml" />
+    <Content Include="config_file\Obama1.yaml" />
+    <Content Include="config_file\Obama2.yaml" />
+    <Content Include="config_file\Vic.yaml" />
     <Content Include="data\May\candidates\normalized_full_0.jpg" />
     <Content Include="data\May\candidates\normalized_full_1.jpg" />
     <Content Include="data\May\candidates\normalized_full_2.jpg" />
@@ -846,6 +852,7 @@
     <Compile Include="util\visualizer.py" />
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="config_file\" />
     <Folder Include="datasets" />
     <Folder Include="data\" />
     <Folder Include="data\May" />

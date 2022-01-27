@@ -12,17 +12,17 @@ model_params:
         #ckp_path: './data/Vic/checkpoints/Audio2Feature.pkl'
         ckp_path: './checkpoints/Audio2Feature_vic/Audio2Feature_200.pkl'
         smooth: 2
-        AMP: ['XYZ', 1.5, 1.5, 1.5]  # method, x, y, z
+        AMP: ['XYZ', 1.0, 1.0, 1.0]  # method, x, y, z
     Headpose:
         #ckp_path: './data/Vic/checkpoints/Audio2Headpose.pkl'
         sigma: 0.3
         smooth: [5, 10]    # rot, trans
-        AMP: [0.5, 0.5]    # rot, trans
+        AMP: [1.0, 1.0]    # rot, trans
         shoulder_AMP: 0.5
     Image2Image:
         #ckp_path: './data/Vic/checkpoints/Feature2Face.pkl'
-        ckp_path: './checkpoints/Feature2Face_vic/Feature2Face_G_100.pkl'
-        size: 'normal'
+        ckp_path: './checkpoints/Feature2Face_vic/Feature2Face_G_5.pkl'
+        size: 'small'
         save_input: 1
         
 

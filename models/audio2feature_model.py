@@ -84,7 +84,10 @@ class Audio2FeatureModel(BaseModel):
             gt_feature_num = self.target_info.shape[1]
             extra_feature_num = max(gt_feature_num - valid_feature_num, 0)
             if not frame_future == 0:
+                # knowm future predict past
                 self.loss = self.featureL2loss(self.preds[:, frame_future:], self.target_info[:, :-frame_future-extra_feature_num]) * 1000
+                # knowm past predict future
+                #self.loss = self.featureL2loss(self.preds[:, :-frame_future], self.target_info[:, frame_future-extra_feature_num:]) * 1000
             else:
                 self.loss = self.featureL2loss(self.preds, self.target_info) * 1000
 
@@ -125,6 +128,8 @@ class Audio2FeatureModel(BaseModel):
         if not frame_future == 0:
             audio_feats_insert = np.repeat(audio_feats[-1], 2 * (frame_future)).reshape(-1, 2 * (frame_future)).T
             audio_feats = np.concatenate([audio_feats, audio_feats_insert])
+            #audio_feats_insert = np.repeat(audio_feats[0], 2 * (frame_future)).reshape(-1, 2 * (frame_future)).T
+            #audio_feats = np.concatenate([audio_feats_insert, audio_feats])
 
         # evaluate mode
         self.Audio2Feature.eval()
@@ -136,6 +141,7 @@ class Audio2FeatureModel(BaseModel):
             # drop first frame future results
         if not frame_future == 0:
             preds = preds[0, frame_future:].cpu().detach().numpy()
+            #preds = preds[0, :-frame_future].cpu().detach().numpy()
         else:
             preds = preds[0, :].cpu().detach().numpy()
 

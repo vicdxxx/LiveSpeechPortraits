@@ -21,7 +21,7 @@ from funcs import utils
 from torch.utils.data import DataLoader
 import copy
 
-only_generate_apc_features = True
+only_generate_apc_features = 0
 
 
 def generate_APC_feature(opt, config, dataset_root):
@@ -104,7 +104,7 @@ def train():
         --dataset_type train \
         --audioRF_future 0 --feature_dtype pts3d --ispts_norm 1 --use_delta_pts 1 \
         --predict_length 1 --only_mouth 1 --verbose --suffix vic \
-        --save_epoch_freq 50 --save_by_iter --phase train --re_transform 0 \
+        --save_epoch_freq 50 --phase train --re_transform 0 \
         --train_dataset_names train_list.txt --validate_dataset_names val_list.txt \
         --n_epochs 200 --lr_policy linear --lr 1e-4 --lr_final 1e-5 --n_epochs_decay 200 \
         --validate_epoch 10  --optimizer Adam'
@@ -129,7 +129,7 @@ def train():
                                 drop_last=True)
 
     with open(join('./config_file/', opt.dataset_names + '.yaml')) as f:
-        config = yaml.load(f)
+        config = yaml.full_load(f)
 
     if only_generate_apc_features:
         dataset_root = os.path.join(opt.dataroot, opt.dataset_names)
@@ -142,12 +142,6 @@ def train():
     model = create_model(opt)
     model.setup(opt)
 
-    adam_betas = (0.9, 0.999)
-    lr = 1e-4
-    model.schedulers
-
-    opt.save_epoch_freq
-    opt.save_by_iter
     for i_epoch in range(opt.n_epochs):
         iter_cnt = 0
         train_iter = iter(dataloader)
@@ -157,10 +151,10 @@ def train():
                 batch = next(train_iter)
                 #for A2Hsamples, target_info in dataset:
                 #model.resume_training()
-                iter_cnt += 1
                 #model.set_input(data=[A2Hsamples[None, :], target_info[None, :]])
                 model.set_input(data=batch)
                 model.optimize_parameters()
+                iter_cnt += 1
             except Exception as e:
                 #print(f'exception: {e}')
                 print(f'iter_cnt: {iter_cnt}, loss: {model.loss}')
