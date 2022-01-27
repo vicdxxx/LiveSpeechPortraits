@@ -31,6 +31,8 @@ import torch
 import traceback
 from funcs import utils
 from util.visualizer import Visualizer
+from collections import OrderedDict
+import util.util as util
 
 
 def train():
@@ -90,8 +92,11 @@ def train():
                 model.set_input(data=batch)
                 model.optimize_parameters()
                 runned_iter = iter_cnt + 1
-                if runned_iter % opt.display_freq == 0 or iter_cnt == 0:
-                    visualizer.display_current_results()
+                #if runned_iter % opt.display_freq == 0 or iter_cnt == 0:
+                #    visual_list = []
+                #    visual_list += [('pred', util.tensor2im(pred_fake[0]))]
+                #    visuals = OrderedDict(visual_list)
+                #    visualizer.display_current_results(visuals, i_epoch, iter_cnt)
                 if iter_cnt % opt.print_freq == 0:
                     print(f'iter_cnt: {iter_cnt}, loss_dict: {model.loss_dict}')
                 iter_cnt += 1
